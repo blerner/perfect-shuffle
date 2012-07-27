@@ -1,0 +1,7 @@
+[Bb]in/
+[Gg]en/
+[Ll]ibs/
+[Pp]roguard/
+.settings/
+.classpath
+project.properties

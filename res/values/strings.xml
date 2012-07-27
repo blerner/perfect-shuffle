@@ -1,0 +1,10 @@
+<resources>
+
+    <string name="app_name">The Perfect Shuffle</string>
+    <string name="menu_settings">Settings</string>
+    <string name="title_activity_song_player">SongPlayer</string>
+    <string name="no_songs_found">No songs found on SD Card</string>
+    <string name="thumbnailImage">&lt;Thumbnail&gt;</string>
+    <string name="title_activity_perfect_shuffle">Perfect Shuffle</string>
+
+</resources>
