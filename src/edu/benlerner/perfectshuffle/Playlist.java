@@ -1,7 +1,6 @@
 package edu.benlerner.perfectshuffle;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +9,6 @@ import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
-import android.os.Environment;
 import android.app.Activity;
 import android.app.ListFragment;
 import android.content.Context;
@@ -29,22 +27,27 @@ import android.widget.TextView;
 
 public class Playlist extends ListFragment {
 
-  private static final File MEDIA_PATH      = Environment
-                                                .getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
   private List<File>        songs           = null;
   private MediaPlayer       mp              = null;
   private int               currentPosition = 0;
+  //private LibraryCache      cache           = null;
 
+  @Override
+  public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    View view = inflater.inflate(R.layout.playlist, null);
+    return view;
+  }
   @Override
   public void onActivityCreated(Bundle savedInstanceState) {
     super.onActivityCreated(savedInstanceState);
-    updateSongList();
   }
 
   @Override
   public void onStart() {
     super.onStart();
     this.mp = new MediaPlayer();
+    //this.cache = new LibraryCache();
+    this.updateSongList();
   }
 
   @Override
@@ -53,15 +56,14 @@ public class Playlist extends ListFragment {
     if (this.mp.isPlaying()) this.mp.stop();
     this.mp.release();
     this.mp = null;
+    //this.cache = null;
   }
 
   protected void updateSongList() {
-    SubtreeFilter filter = new SubtreeFilter();
-    this.songs = filter.listFiles(MEDIA_PATH, new Mp3Filter());
-    if (!this.songs.isEmpty()) {
-      ArrayAdapter<File> songList = new PlaylistView(this.getActivity(), R.layout.playlist_item, this.songs);
-      this.setListAdapter(songList);
-    }
+    //LibraryCache.CacheStructure cache = this.cache.CreateAlbumCache(this.getActivity(), null);
+    this.songs = new ArrayList<File>(0);
+    ArrayAdapter<File> songList = new PlaylistViewAdapter(this.getActivity(), R.layout.playlist_item, this.songs);
+    this.setListAdapter(songList);
   }
 
   @Override
@@ -106,12 +108,12 @@ public class Playlist extends ListFragment {
   }
 }
 
-class PlaylistView extends ArrayAdapter<File> {
+class PlaylistViewAdapter extends ArrayAdapter<File> {
   Context    context          = null;
   int        layoutResourceId = 0;
-  List<File> files;
+  List<File> files            = null;
 
-  public PlaylistView(Context context, int layoutResourceId, List<File> files) {
+  public PlaylistViewAdapter(Context context, int layoutResourceId, List<File> files) {
     super(context, layoutResourceId, files);
     this.context = context;
     this.layoutResourceId = layoutResourceId;
@@ -152,14 +154,8 @@ class PlaylistView extends ArrayAdapter<File> {
       holder.thumbnail.setImageResource(android.R.drawable.gallery_thumb);
     } else {
       Bitmap imageBmp = BitmapFactory.decodeByteArray(image, 0, image.length);
-      /*
-       * int width = 32; int height = 32; imageBmp =
-       * Bitmap.createScaledBitmap(imageBmp, width, height, true);
-       */
       holder.thumbnail.setImageBitmap(imageBmp);
     }
-
-    // holder.imgIcon.setImageResource(file.icon);
 
     return row;
   }
@@ -171,27 +167,3 @@ class PlaylistView extends ArrayAdapter<File> {
   }
 }
 
-class SubtreeFilter {
-  public ArrayList<File> listFiles(File source, FilenameFilter filter) {
-    ArrayList<File> files = new ArrayList<File>();
-    helper(source, files, filter);
-    return files;
-  }
-
-  private void helper(File source, ArrayList<File> files, FilenameFilter filter) {
-    if (files.size() > 15) return;
-    if (source.isDirectory()) {
-      for (File file : source.listFiles()) {
-        helper(file, files, filter);
-      }
-    } else if (source.isFile()) {
-      if (filter.accept(source, source.getName())) files.add(source);
-    }
-  }
-}
-
-class Mp3Filter implements FilenameFilter {
-  public boolean accept(File dir, String name) {
-    return (name.endsWith(".mp3"));
-  }
-}

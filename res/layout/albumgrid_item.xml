@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+    
+
+
+
+    <ImageView
+        android:id="@+id/albumgridItemThumbnail"
+        android:layout_width="64dip"
+        android:layout_height="64dip"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_margin="4dip"
+        android:contentDescription="@string/thumbnailImage"
+        android:maxHeight="64dip"
+        android:maxWidth="64dip"
+        android:scaleType="centerCrop"
+        android:src="@android:drawable/gallery_thumb" />
+
+
+    <TextView
+        android:id="@+id/albumgridItemName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/albumgridItemThumbnail"
+        android:layout_margin="4dip"
+        android:layout_toRightOf="@+id/albumgridItemThumbnail"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:singleLine="true"
+        android:scrollHorizontally="true"
+        android:ellipsize="marquee"
+        android:text="@string/app_name"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+
+
+
+
+
+    <TextView
+        android:id="@+id/albumgridItemNumTracks"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/albumgridItemThumbnail"
+        android:layout_marginBottom="8dip"
+        android:layout_marginLeft="4dip"
+        android:layout_toRightOf="@+id/albumgridItemThumbnail"
+        android:ellipsize="marquee"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:scrollHorizontally="true"
+        android:singleLine="true"
+        android:text="@string/no_songs_found"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+    
+</RelativeLayout>

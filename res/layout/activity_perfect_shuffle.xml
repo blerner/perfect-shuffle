@@ -9,34 +9,28 @@
         android:scaleType="centerCrop"
         android:src="@drawable/bubbles_background" />
 
-    <TabHost
-        android:id="@android:id/tabhost"
+    <RelativeLayout
+        android:id="@+id/mainLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent" >
 
-        <LinearLayout
+        <FrameLayout
+            android:id="@+id/fragment_content"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="96dip" >
+        </FrameLayout>
+
+        <fragment
+            android:id="@+id/metrobar"
+            android:name="edu.benlerner.perfectshuffle.MetroBarFragment"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical" >
+            android:layout_height="96dip"
+            tools:layout="@layout/metrobar"
+            android:gravity="bottom" />
 
-            <TabWidget
-                android:id="@android:id/tabs"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" >
-            </TabWidget>
-
-            <FrameLayout
-                android:id="@android:id/tabcontent"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="0" />
-
-            <FrameLayout
-                android:id="@+android:id/realtabcontent"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-        </LinearLayout>
-    </TabHost>
+    </RelativeLayout>
 
 </merge>
