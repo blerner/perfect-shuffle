@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+     <declare-styleable name="ExpandoGroup">       
+        <attr name="caption"    format="string" />
+        <attr name="captionAppearance" format="reference"/>
+        <attr name="collapseDrawable" format="reference"/>
+        <attr name="expandDrawable" format="reference"/>
+    </declare-styleable>    
+</resources>
