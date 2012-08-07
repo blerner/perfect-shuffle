@@ -21,49 +21,70 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom" >
-
+
             <TextView
                 android:id="@+id/home"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dip"
+                android:layout_marginBottom="8dip"
+                android:layout_marginLeft="8dip"
+                android:layout_marginRight="8dip"
+                android:layout_marginTop="0dip"
+                android:gravity="bottom"
                 android:text="@string/home"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
-
+
             <TextView
                 android:id="@+id/nowPlaying"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dip"
+                android:layout_marginBottom="8dip"
+                android:layout_marginLeft="8dip"
+                android:layout_marginRight="8dip"
+                android:layout_marginTop="0dip"
+                android:gravity="bottom"
                 android:tag="id/nowPlayingShelf"
                 android:text="@string/now_playing"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
-
+
             <TextView
                 android:id="@+id/music"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dip"
+                android:layout_marginBottom="8dip"
+                android:layout_marginLeft="8dip"
+                android:layout_marginRight="8dip"
+                android:layout_marginTop="0dip"
+                android:gravity="bottom"
                 android:tag="id/musicShelf"
                 android:text="@string/music"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
-
+
             <TextView
                 android:id="@+id/playlists"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dip"
+                android:layout_marginBottom="8dip"
+                android:layout_marginLeft="8dip"
+                android:layout_marginRight="8dip"
+                android:layout_marginTop="0dip"
+                android:gravity="bottom"
                 android:text="@string/playlists"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
-
+
             <TextView
                 android:id="@+id/options"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dip"
+                android:layout_marginBottom="8dip"
+                android:layout_marginLeft="8dip"
+                android:layout_marginRight="8dip"
+                android:layout_marginTop="0dip"
+                android:gravity="bottom"
                 android:tag="options/options"
                 android:text="@string/options"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
+
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
 

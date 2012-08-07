@@ -31,11 +31,13 @@ public class PerfectShuffle extends FragmentActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    this.mToken = MusicUtils.bindToService(this);
     setContentView(R.layout.activity_perfect_shuffle);
+    ((MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar))
+      .initialize((FrameLayout)this.findViewById(R.id.fragment_content));
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
     new PreloadAlbumArtTask(this)
       .execute(new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(), R.drawable.eighth_notes)));
-    this.mToken = MusicUtils.bindToService(this);
     this.mReScanHandler = new RescanHandler(this);
     this.mScanListener  = new BroadcastReceiver() {
       @Override
@@ -63,13 +65,6 @@ public class PerfectShuffle extends FragmentActivity {
       //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
       Toast.makeText(this.getShuffle(), "Going to rescan albums", Toast.LENGTH_SHORT).show();
     }
-  }
-
-  @Override
-  protected void onStart() {
-    super.onStart();
-    ((MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar))
-      .initialize((FrameLayout)this.findViewById(R.id.fragment_content));
   }
   
   private BroadcastReceiver mScanListener;

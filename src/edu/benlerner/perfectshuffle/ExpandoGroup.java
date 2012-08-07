@@ -398,7 +398,7 @@ public class ExpandoGroup extends TableLayout {
     this.invalidate();
     this.requestLayout();
   }
-  static class MarginAnimator extends ValueAnimator {
+  public static class MarginAnimator extends ValueAnimator {
     public enum Margin { TOP, LEFT, BOTTOM, RIGHT };
     public static ValueAnimator ofMargin(final View target, final Margin whichMargin, int... values) {
       ValueAnimator ret = ValueAnimator.ofInt(values);

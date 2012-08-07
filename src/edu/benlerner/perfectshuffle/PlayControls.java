@@ -33,7 +33,7 @@ public class PlayControls extends Fragment {
     play.setOnClickListener(clickHandler);
     try {
       play.setChecked(MusicUtils.sService.isPlaying());
-    } catch (RemoteException e) {
+    } catch (Exception e) {
     }
     ((ImageButton)view.findViewById(R.id.rew)).setOnClickListener(clickHandler);
     ((ImageButton)view.findViewById(R.id.fwd)).setOnClickListener(clickHandler);
