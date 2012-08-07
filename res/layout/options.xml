@@ -15,7 +15,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:tag="testing"
-            app:caption="Cache settings"
+            app:caption="@string/cache_settings"
             app:collapseDrawable="@drawable/navigation_collapse"
             app:expandDrawable="@drawable/navigation_expand" >
 
@@ -25,7 +25,7 @@
                 android:layout_height="wrap_content"
                 android:alpha="1.0"
                 android:gravity="center_vertical|center_horizontal"
-                android:text="Clear cache" />
+                android:text="@string/clear_cache" />
         </edu.benlerner.perfectshuffle.ExpandoGroup>
 
         <edu.benlerner.perfectshuffle.ExpandoGroup
@@ -33,7 +33,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:tag="testing"
-            app:caption="Shuffle settings"
+            app:caption="@string/cache_settings"
+            app:collapseDrawable="@drawable/navigation_collapse"
+            app:expandDrawable="@drawable/navigation_expand" >
+
+            <Button
+                android:id="@+id/btnFinish"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="1.0"
+                android:gravity="center_vertical|center_horizontal"
+                android:text="@string/force_finish" />
+        </edu.benlerner.perfectshuffle.ExpandoGroup>
+        
+        <edu.benlerner.perfectshuffle.ExpandoGroup
+            android:id="@+id/expandoGroup3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:tag="testing"
+            app:caption="@string/shuffle_settings"
             app:collapseDrawable="@drawable/navigation_collapse"
             app:expandDrawable="@drawable/navigation_expand" >
 
@@ -42,7 +60,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checked="false"
-                android:text="Shuffle by default" />
+                android:text="@string/shuffle_by_default" />
         </edu.benlerner.perfectshuffle.ExpandoGroup>
     </LinearLayout>
 

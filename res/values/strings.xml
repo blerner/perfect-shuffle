@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
 
     <string name="app_name">The Perfect Shuffle</string>
     <string name="menu_settings">Settings</string>
@@ -6,5 +6,30 @@
     <string name="no_songs_found">No songs found on SD Card</string>
     <string name="thumbnailImage">&lt;Thumbnail&gt;</string>
     <string name="title_activity_perfect_shuffle">Perfect Shuffle</string>
-
+    <string name="previous_track">Previous track</string>
+    <string name="next_track">Next track</string>
+    <string name="fast_forward_track">Fast-forward track</string>
+    <string name="play_pause_current_track">Play/pause current track</string>
+    <string name="rewind_track">Rewind track</string>
+    <!-- Do not translate. Duration format for duration < 1 hour -->
+    <string translatable="false" name="durationformatshort"><xliff:g id="format">%2$d:%5$02d</xliff:g></string>
+    <!-- Do not translate. Duration format for duration >= 1 hour -->
+    <string translatable="false" name="durationformatlong"><xliff:g id="format">%1$d:%3$02d:%5$02d</xliff:g></string>
+    <string name="home">Home</string>
+    <string name="now_playing">Now Playing</string>
+    <string name="music">Music</string>
+    <string name="playlists">Playlists</string>
+    <string name="options">Options</string>
+    <string name="all">All</string>
+    <string name="albums">Albums</string>
+    <string name="artists">Artists</string>
+    <string name="genres">Genres</string>
+    <string name="zero_time">0:00</string>
+    <string name="current">Current</string>
+    <string name="playlist">Playlist</string>
+    <string name="clear_cache">Clear cache</string>
+    <string name="shuffle_by_default">Shuffle by default</string>
+    <string name="cache_settings">Cache settings</string>
+    <string name="shuffle_settings">Shuffle settings</string>
+    <string name="force_finish">Force Finish</string>
 </resources>

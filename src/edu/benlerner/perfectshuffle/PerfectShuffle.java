@@ -1,24 +1,86 @@
 package edu.benlerner.perfectshuffle;
 
+import edu.benlerner.perfectshuffle.MusicUtils.ServiceToken;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
+import android.media.AudioManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.os.RemoteException;
 import android.provider.MediaStore;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
 import android.view.Menu;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
-public class PerfectShuffle extends Activity {
-
+public class PerfectShuffle extends FragmentActivity {
+  private ServiceToken mToken;
+  
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_perfect_shuffle);
+    setVolumeControlStream(AudioManager.STREAM_MUSIC);
     new PreloadAlbumArtTask(this)
       .execute(new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(), R.drawable.eighth_notes)));
+    this.mToken = MusicUtils.bindToService(this);
+    this.mReScanHandler = new Handler() {
+      @Override
+      public void handleMessage(Message msg) {
+        //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
+        Toast.makeText(PerfectShuffle.this, "Going to rescan albums", Toast.LENGTH_SHORT).show();
+      }
+    };
+    this.mScanListener  = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context context, Intent intent) {
+        mReScanHandler.sendEmptyMessage(0);
+      }
+    };
+    IntentFilter f = new IntentFilter();
+    f.addAction(Intent.ACTION_MEDIA_SCANNER_STARTED);
+    f.addAction(Intent.ACTION_MEDIA_SCANNER_FINISHED);
+    f.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+    f.addDataScheme("file");
+    registerReceiver(mScanListener, f);
+  }
+
+  @Override
+  protected void onStart() {
+    super.onStart();
+    ((MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar))
+      .initialize((FrameLayout)this.findViewById(R.id.fragment_content));
+  }
+  
+  private BroadcastReceiver mScanListener;
+
+  private Handler           mReScanHandler;
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    try {
+      MusicUtils.sService.stop();
+    } catch (RemoteException e) {
+    }
+    MusicUtils.unbindFromService(mToken);
+    unregisterReceiver(mScanListener);
+  }
+  
+  public void playSong(String path) {
+    MetroBarFragment mb = (MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
+    PlayControls pc = (PlayControls)mb.gotoViewFor((TextView)this.findViewById(R.id.current));
+    pc.playSong(path);
   }
 
   @Override

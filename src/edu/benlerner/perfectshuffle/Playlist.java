@@ -1,21 +1,16 @@
 package edu.benlerner.perfectshuffle;
 
-import java.io.IOException;
-
 import android.app.Activity;
-import android.app.ListFragment;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.media.MediaPlayer;
-import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.util.Log;
+import android.support.v4.app.ListFragment;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -26,9 +21,10 @@ import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 
+import com.mpatric.mp3agic.Mp3File;
+
 public class Playlist extends ListFragment {
 
-  private MediaPlayer    mp              = null;
   private int            currentPosition = 0;
   private Cursor         cursor          = null;
   private BitmapDrawable defaultAlbumArt;
@@ -49,20 +45,9 @@ public class Playlist extends ListFragment {
   @Override
   public void onStart() {
     super.onStart();
-    this.mp = new MediaPlayer();
-    // this.cache = new LibraryCache();
     this.updateSongList();
     this.defaultAlbumArt = new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(),
         R.drawable.eighth_notes));
-  }
-
-  @Override
-  public void onStop() {
-    super.onStop();
-    if (this.mp.isPlaying()) this.mp.stop();
-    this.mp.release();
-    this.mp = null;
-    // this.cache = null;
   }
 
   protected void updateSongList() {
@@ -72,7 +57,6 @@ public class Playlist extends ListFragment {
     String[] cols = { MediaStore.Audio.Media._ID, 
         MediaStore.Audio.Media.DATA, 
         MediaStore.Audio.Media.TITLE,
-        MediaStore.Audio.Media.TITLE_KEY,
         MediaStore.Audio.Media.ALBUM,
         MediaStore.Audio.Media.ALBUM_ID};
     Activity act = this.getActivity();
@@ -90,32 +74,20 @@ public class Playlist extends ListFragment {
   @Override
   public void onListItemClick(ListView l, View v, int position, long id) {
     currentPosition = position;
+    
     final int dataCol = this.cursor.getColumnIndex(MediaStore.Audio.Media.DATA);
     this.cursor.moveToPosition(position);
     final String path = this.cursor.getString(dataCol);
-    Toast.makeText(this.getActivity(), "Group is " + this.cursor.getString(this.cursor.getColumnIndex(MediaStore.Audio.Media.TITLE_KEY)), Toast.LENGTH_SHORT).show();
-    playSong(path);
-  };
-
-  protected void playSong(String songPath) {
     try {
-
-      mp.reset();
-      mp.setDataSource(songPath);
-      mp.prepare();
-      mp.start();
-
-      // Setup listener so next song starts automatically
-      mp.setOnCompletionListener(new OnCompletionListener() {
-        public void onCompletion(MediaPlayer arg0) {
-          nextSong();
-        }
-      });
-
-    } catch (IOException e) {
-      Log.v(getString(R.string.app_name), e.getMessage());
+      Mp3File file = new Mp3File(path, false);
+      Toast.makeText(this.getActivity(), "Group is " + file.getId3v2Tag().getGrouping(), Toast.LENGTH_SHORT).show();
+    } catch (Exception e) {
+      e.printStackTrace();
     }
-  }
+    // What does TITLE_KEY actually do?  No one knows...
+    //Toast.makeText(this.getActivity(), "Group is " + this.cursor.getString(this.cursor.getColumnIndex(MediaStore.Audio.Media.TITLE_KEY)), Toast.LENGTH_SHORT).show();
+    ((PerfectShuffle)this.getActivity()).playSong(path);
+  };
 
   protected void nextSong() {
     if (++currentPosition >= this.cursor.getCount()) {

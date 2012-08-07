@@ -1,12 +1,13 @@
 package edu.benlerner.perfectshuffle;
 
-import android.app.Fragment;
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -18,6 +19,7 @@ public class Options extends Fragment {
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     View view = inflater.inflate(R.layout.options, null);
+    final Activity activity = this.getActivity();
     final Context context = this.getActivity().getApplicationContext();
     final NotificationManager mNotificationManager = (NotificationManager)this.getActivity().getSystemService(Context.NOTIFICATION_SERVICE);
     Intent notificationIntent = new Intent();
@@ -33,6 +35,11 @@ public class Options extends Fragment {
         
         Toast toast = Toast.makeText(context, "Clicked on the Clear Cache button", Toast.LENGTH_LONG);
         toast.show();
+      }
+    });
+    view.findViewById(R.id.btnFinish).setOnClickListener(new OnClickListener() {
+      public void onClick(View v) {
+        activity.finish();
       }
     });
     return view;

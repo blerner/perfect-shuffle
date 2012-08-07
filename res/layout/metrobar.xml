@@ -27,7 +27,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
-                android:text="Home"
+                android:text="@string/home"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -36,7 +36,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
                 android:tag="id/nowPlayingShelf"
-                android:text="Now Playing"
+                android:text="@string/now_playing"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -45,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
                 android:tag="id/musicShelf"
-                android:text="Music"
+                android:text="@string/music"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -53,7 +53,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
-                android:text="Playlists"
+                android:text="@string/playlists"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -62,7 +62,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
                 android:tag="options/options"
-                android:text="Options"
+                android:text="@string/options"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
@@ -86,12 +86,21 @@
             android:visibility="gone" >
 
             <TextView
+                android:id="@+id/all"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dip"
+                android:tag="playlist/playlist"
+                android:text="@string/all"
+                android:textAppearance="?android:attr/textAppearanceLarge" />
+
+            <TextView
                 android:id="@+id/albums"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
                 android:tag="albumgrid/albumgrid"
-                android:text="Albums"
+                android:text="@string/albums"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -99,16 +108,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
-                android:text="Artists"
-                android:textAppearance="?android:attr/textAppearanceLarge" />
-
-            <TextView
-                android:id="@+id/all"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_margin="8dip"
-                android:tag="playlist/playlist"
-                android:text="All"
+                android:text="@string/artists"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -116,7 +116,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
-                android:text="Genres"
+                android:text="@string/genres"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
@@ -138,13 +138,14 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top"
             android:visibility="gone" >
-
+
             <TextView
                 android:id="@+id/current"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
-                android:text="Current"
+                android:tag="play/current"
+                android:text="@string/current"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
             <TextView
@@ -152,7 +153,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dip"
-                android:text="Playlist"
+                android:text="@string/playlist"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
