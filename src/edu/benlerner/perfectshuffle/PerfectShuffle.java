@@ -1,5 +1,7 @@
 package edu.benlerner.perfectshuffle;
 
+import java.lang.ref.WeakReference;
+
 import edu.benlerner.perfectshuffle.MusicUtils.ServiceToken;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -18,7 +20,6 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentManager;
 import android.view.Menu;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -35,13 +36,7 @@ public class PerfectShuffle extends FragmentActivity {
     new PreloadAlbumArtTask(this)
       .execute(new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(), R.drawable.eighth_notes)));
     this.mToken = MusicUtils.bindToService(this);
-    this.mReScanHandler = new Handler() {
-      @Override
-      public void handleMessage(Message msg) {
-        //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
-        Toast.makeText(PerfectShuffle.this, "Going to rescan albums", Toast.LENGTH_SHORT).show();
-      }
-    };
+    this.mReScanHandler = new RescanHandler(this);
     this.mScanListener  = new BroadcastReceiver() {
       @Override
       public void onReceive(Context context, Intent intent) {
@@ -54,6 +49,20 @@ public class PerfectShuffle extends FragmentActivity {
     f.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
     f.addDataScheme("file");
     registerReceiver(mScanListener, f);
+  }
+  private static class RescanHandler extends Handler {
+    final WeakReference<PerfectShuffle> shuffle;
+    public RescanHandler(PerfectShuffle shuffle) {
+      this.shuffle = new WeakReference<PerfectShuffle>(shuffle);
+    }
+    PerfectShuffle getShuffle () {
+      return this.shuffle.get();
+    }
+    @Override
+    public void handleMessage(Message msg) {
+      //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
+      Toast.makeText(this.getShuffle(), "Going to rescan albums", Toast.LENGTH_SHORT).show();
+    }
   }
 
   @Override
