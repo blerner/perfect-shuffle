@@ -3,8 +3,6 @@ package edu.benlerner.perfectshuffle;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.benlerner.perfectshuffle.ExpandoGroup.MarginAnimator;
-
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
@@ -90,7 +88,7 @@ public class MetroBarFragment extends Fragment {
       if (tagParts[0].equals("id")) {
         tag = getResources().getIdentifier(tagParts[1], "id", this.getActivity().getPackageName());
         nextShelf = (LinearLayout)view.findViewById(tag);
-        pager.setOnPageChangeListener(new PageChangeListener(nextShelf));
+        pager.setOnPageChangeListener(new PageChangeListener(pager, nextShelf));
         this.shelves.add(nextShelf);
         this.parentShelfMap.put(nextShelf.getId(), shelf.getId());
         pager.setAdapter(new TabShelfAdapter(this.getFragmentManager(), nextShelf));
@@ -308,11 +306,21 @@ public class MetroBarFragment extends Fragment {
     gotoViewFor((TextView)shelf.getChildAt(0));
   }
 
-  public Fragment gotoViewFor(TextView text) {
-    // mTabState keeps track of which tab is currently displaying its contents.
-    // Perform a check to make sure the list tab content isn't already
-    // displaying.
+  public Fragment getViewFor(TextView text) {
+    ViewPager pager = (ViewPager)text.getTag();
+    if (pager == null)
+      return null;
 
+    Fragment ret = null;
+    // Update the mTabState
+    mTabState = text.getId();
+
+    TabShelfAdapter shelfAdapter = (TabShelfAdapter)pager.getAdapter();
+    int index = shelfAdapter.getIndexOf(text);
+    ret = shelfAdapter.getItem(index);
+    return ret;
+  }
+  public Fragment gotoViewFor(TextView text) {
     ViewPager pager = (ViewPager)text.getTag();
     if (pager == null)
       return null;
@@ -330,8 +338,10 @@ public class MetroBarFragment extends Fragment {
 
   private class PageChangeListener implements OnPageChangeListener {
     LinearLayout shelf;
-    public PageChangeListener(LinearLayout shelf) {
+    ViewPager pager;
+    public PageChangeListener(ViewPager pager, LinearLayout shelf) {
       this.shelf = shelf;
+      this.pager = pager;
     }
     public void onPageScrollStateChanged(int state) {
     }
@@ -344,7 +354,13 @@ public class MetroBarFragment extends Fragment {
       animateTextHighlight(anims, text);
       set.playTogether(anims);
       set.setDuration(DURATION);
-      set.start();     
+      set.start();
+      TabShelfAdapter shelfAdapter = (TabShelfAdapter)this.pager.getAdapter();
+      Fragment active = shelfAdapter.getItem(position);
+      if (active instanceof PlayControls) {
+        PlayControls pc = (PlayControls)active;
+        pc.readInfoFromService();
+      }
     }
   }
   

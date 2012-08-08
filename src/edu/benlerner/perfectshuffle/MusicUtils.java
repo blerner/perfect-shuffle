@@ -358,25 +358,37 @@ public class MusicUtils {
     return d;
   }
   
-  public static boolean getCachedFileArt(Context context, long album_id, String song_path, BitmapDrawable defaultArtwork) {
+  public static boolean getCachedFileArt(long album_id, String song_path, BitmapDrawable defaultArtwork) {
    MediaMetadataRetriever mmr = new MediaMetadataRetriever();
    mmr.setDataSource(song_path);
 
    byte[] image = mmr.getEmbeddedPicture();
-   if (image == null) {
-     return false;
-   } else {
-     Bitmap imageBmp = BitmapFactory.decodeByteArray(image, 0, image.length);
-     final Bitmap icon = defaultArtwork.getBitmap();
-     int w = icon.getWidth();
-     int h = icon.getHeight();
-     Bitmap b = Bitmap.createScaledBitmap(imageBmp, w, h, true); 
-     FastBitmapDrawable d = new FastBitmapDrawable(b);
-     synchronized (sArtCache) {
-       sArtCache.put(album_id, d);
-     }
-     return true;
-   }
+    if (image == null) {
+      return false;
+    } else {
+      Bitmap imageBmp = BitmapFactory.decodeByteArray(image, 0, image.length);
+      final Bitmap icon = defaultArtwork.getBitmap();
+      int w = icon.getWidth();
+      int h = icon.getHeight();
+      Bitmap b = Bitmap.createScaledBitmap(imageBmp, w, h, true);
+      FastBitmapDrawable d = new FastBitmapDrawable(b);
+      synchronized (sArtCache) {
+        sArtCache.put(album_id, d);
+      }
+      return true;
+    }
+  }
+
+  public static Bitmap getFileArt(String song_path) {
+    MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+    mmr.setDataSource(song_path);
+
+    byte[] image = mmr.getEmbeddedPicture();
+    if (image == null) {
+      return null;
+    } else {
+      return BitmapFactory.decodeByteArray(image, 0, image.length);
+    }
   }
 
   // Get album art for specified album. This method will not try to

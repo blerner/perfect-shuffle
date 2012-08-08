@@ -2,8 +2,8 @@ package edu.benlerner.perfectshuffle;
 
 import java.lang.ref.WeakReference;
 
-import edu.benlerner.perfectshuffle.MusicUtils.ServiceToken;
 import android.app.Activity;
+
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -17,32 +17,40 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
 import android.view.Menu;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import edu.benlerner.perfectshuffle.MusicUtils.ServiceToken;
 
 public class PerfectShuffle extends FragmentActivity {
   private ServiceToken mToken;
+
+  private static final int QUIT = 2;
+  private static final int RESCAN = 3;
   
+  //private PlayControls currentPlaying;
+  private void initializeUI() {
+    MetroBarFragment metrobar = (MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
+    metrobar.initialize((FrameLayout)this.findViewById(R.id.fragment_content));
+    //this.currentPlaying = (PlayControls)metrobar.getViewFor((TextView)this.findViewById(R.id.current));
+  }
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     this.mToken = MusicUtils.bindToService(this);
     setContentView(R.layout.activity_perfect_shuffle);
-    ((MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar))
-      .initialize((FrameLayout)this.findViewById(R.id.fragment_content));
+    initializeUI();
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
     new PreloadAlbumArtTask(this)
       .execute(new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(), R.drawable.eighth_notes)));
-    this.mReScanHandler = new RescanHandler(this);
+    this.mPerfectShuffleHandler = new PerfectShuffleHandler(this);
     this.mScanListener  = new BroadcastReceiver() {
       @Override
       public void onReceive(Context context, Intent intent) {
-        mReScanHandler.sendEmptyMessage(0);
+        mPerfectShuffleHandler.sendEmptyMessage(RESCAN);
       }
     };
     IntentFilter f = new IntentFilter();
@@ -52,9 +60,13 @@ public class PerfectShuffle extends FragmentActivity {
     f.addDataScheme("file");
     registerReceiver(mScanListener, f);
   }
-  private static class RescanHandler extends Handler {
+  @Override
+  protected void onStart() {
+    super.onStart();
+  }
+  private static class PerfectShuffleHandler extends Handler {
     final WeakReference<PerfectShuffle> shuffle;
-    public RescanHandler(PerfectShuffle shuffle) {
+    public PerfectShuffleHandler(PerfectShuffle shuffle) {
       this.shuffle = new WeakReference<PerfectShuffle>(shuffle);
     }
     PerfectShuffle getShuffle () {
@@ -62,21 +74,40 @@ public class PerfectShuffle extends FragmentActivity {
     }
     @Override
     public void handleMessage(Message msg) {
-      //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
-      Toast.makeText(this.getShuffle(), "Going to rescan albums", Toast.LENGTH_SHORT).show();
+      switch (msg.what) {
+      case RESCAN:
+        //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
+        Toast.makeText(this.getShuffle(), "Going to rescan albums", Toast.LENGTH_SHORT).show();
+        break;
+      case QUIT:
+//                // This can be moved back to onCreate once the bug that prevents
+//                // Dialogs from being started from onCreate/onResume is fixed.
+//                new AlertDialog.Builder(PerfectShuffle.this)
+//                        .setTitle(R.string.service_start_error_title)
+//                        .setMessage(R.string.service_start_error_msg)
+//                        .setPositiveButton(R.string.service_start_error_button,
+//                                new DialogInterface.OnClickListener() {
+//                                    public void onClick(DialogInterface dialog, int whichButton) {
+//                                        finish();
+//                                    }
+//                                })
+//                        .setCancelable(false)
+//                        .show();
+        break;
+
+      default:
+        break;
+      }
     }
-  }
+  };
+  
   
   private BroadcastReceiver mScanListener;
 
-  private Handler           mReScanHandler;
+  private Handler           mPerfectShuffleHandler;
   @Override
   protected void onDestroy() {
     super.onDestroy();
-    try {
-      MusicUtils.sService.stop();
-    } catch (RemoteException e) {
-    }
     MusicUtils.unbindFromService(mToken);
     unregisterReceiver(mScanListener);
   }
@@ -117,7 +148,7 @@ public class PerfectShuffle extends FragmentActivity {
           albumCursor.moveToPosition(-1);
           boolean found = false;
           while (albumCursor.moveToNext())
-            if (MusicUtils.getCachedFileArt(act, audioCursor.getInt(0), albumCursor.getString(1), params[0])) {
+            if (MusicUtils.getCachedFileArt(audioCursor.getInt(0), albumCursor.getString(1), params[0])) {
               found = true;
               break;
             }
