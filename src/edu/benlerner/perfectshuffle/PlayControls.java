@@ -2,6 +2,7 @@ package edu.benlerner.perfectshuffle;
 
 import java.lang.ref.WeakReference;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
@@ -20,6 +21,7 @@ import android.widget.ToggleButton;
 
 public class PlayControls extends Fragment {
   SeekBar mProgress;
+  TextView mStartTime;
 
   private static final int REFRESH = 1;
   private static class RefreshHandler extends Handler {
@@ -45,7 +47,7 @@ public class PlayControls extends Fragment {
   RefreshHandler mRefreshHandler;
   private void queueNextRefresh(long delay) {
     try {
-      if (MusicUtils.sService == null || MusicUtils.sService.isPlaying()) {
+      if (this.mRefreshHandler != null && (MusicUtils.sService == null || MusicUtils.sService.isPlaying())) {
         Message msg = mRefreshHandler.obtainMessage(REFRESH);
         mRefreshHandler.removeMessages(REFRESH);
         mRefreshHandler.sendMessageDelayed(msg, delay);
@@ -61,6 +63,8 @@ public class PlayControls extends Fragment {
   }
   @Override
   public void onDestroy() {
+    this.mRefreshHandler.removeMessages(REFRESH);
+    this.mRefreshHandler = null;
     super.onDestroy();
   }
 
@@ -68,6 +72,7 @@ public class PlayControls extends Fragment {
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     View view = inflater.inflate(R.layout.current_song, container, false);
     final PlayControls frag = this;
+    this.mStartTime = (TextView)view.findViewById(R.id.startTime);
     this.mProgress = (SeekBar)view.findViewById(R.id.seekBar);
     View.OnClickListener clickHandler = new View.OnClickListener() {
       public void onClick(View v) {
@@ -130,6 +135,7 @@ public class PlayControls extends Fragment {
   }
   
   void onClick(View v) {
+    if (MusicUtils.sService == null) return;
     switch (v.getId()) {
     case R.id.play:
       ToggleButton play = (ToggleButton)v;
@@ -149,12 +155,14 @@ public class PlayControls extends Fragment {
     case R.id.rew:
       try {
         MusicUtils.sService.seek(0);
+        refreshNow();
       } catch (RemoteException e) {
       }
     }
   }
   public void playSong(String path) {
     try {
+      if (MusicUtils.sService == null) return;
       if (MusicUtils.sService.isPlaying())
         MusicUtils.sService.stop();
       MusicUtils.sService.openFile(path);
@@ -174,8 +182,9 @@ public class PlayControls extends Fragment {
       long pos = mService.position();
       long duration = mService.duration();
       if ((pos >= 0) && (duration > 0)) {
-        // mCurrentTime.setText(MusicUtils.makeTimeString(this.getActivity(),
-        // pos / 1000));
+        Context cxt = this.getActivity();
+        if (cxt != null)
+          mStartTime.setText(MusicUtils.makeTimeString(this.getActivity(), pos / 1000));
         int progress = (int)(1000 * pos / duration);
         mProgress.setProgress(progress);
 

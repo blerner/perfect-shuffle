@@ -8,12 +8,14 @@ import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
+import android.content.res.Resources.NotFoundException;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v4.view.ViewPager.OnPageChangeListener;
+import android.util.Log;
 import android.util.Pair;
 import android.util.SparseIntArray;
 import android.util.TypedValue;
@@ -32,9 +34,11 @@ public class MetroBarFragment extends Fragment {
   private List<TextView>     texts     = new ArrayList<TextView>(10);
   private List<ViewPager>    pagers    = new ArrayList<ViewPager>(5);
   private SparseIntArray parentShelfMap = new SparseIntArray(10);
+  private SparseIntArray parentTextMap = new SparseIntArray(2); // maps from "Current" or "Playing" in the second shelf to "Now Playing" in the top shelf
   final int DURATION = 500;
   float normalSize;
   float largerSize;
+  int topShelfScrollX;
   
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -47,25 +51,61 @@ public class MetroBarFragment extends Fragment {
     this.largerSize = this.normalSize * 2.5f;
 
     if (savedInstanceState != null) {
-      this.mTabState = savedInstanceState.getInt("tab");
+      this.setActiveTab(savedInstanceState.getInt("tab"));
+      this.topShelfScrollX = savedInstanceState.getInt("topShelfScrollX");
     }
     return mainView;
   }
   public void initialize(FrameLayout content) {
-    LinearLayout topShelf = (LinearLayout)this.getView().findViewById(R.id.topShelf);
-    this.parentShelfMap.put(R.id.topShelf, -1);
-    connectTopShelfViews(this.getView(), topShelf, content);
     View view = this.getView();
     if (view == null) return;
-    view = view.findViewById(this.mTabState);
-    if (view == null) return;
-    view.performClick();
+    LinearLayout topShelf = (LinearLayout)view.findViewById(R.id.topShelf);
+    this.parentShelfMap.put(R.id.topShelf, -1);
+    connectTopShelfViews(view, topShelf, content);
+  }
+  public void onResume() {
+    super.onResume();
+    initializeTabView(this.getView(), this.getActiveTab());
+  }
+  private void initializeTabView(final View view, int tabToShow) {
+    TextView text = (TextView)view.findViewById(tabToShow);
+    TextView topText = null;
+    if (text == null) return;
+    int topTextId = this.parentTextMap.get(tabToShow);
+    if (topTextId != 0) {
+      topText = (TextView)view.findViewById(topTextId);
+    } else {
+      topText = text;
+      text = null;
+    }
+    
+    
+    if (topText != null)
+      animateTextHighlight(null, topText);
+    if (text != null) {
+      ViewPager pagerToShow = (ViewPager)text.getTag();
+      for (ViewPager p : this.pagers) {
+        if (p == pagerToShow)
+          p.setVisibility(View.VISIBLE);
+        else
+          p.setVisibility(View.GONE);
+      }
+      animateTextHighlight(null, text);
+      LinearLayout shelf = (LinearLayout)text.getParent();
+      hideShelvesUnlessAncestorOf(shelf);
+      animateShelves(null, shelf);
+      FadingHorizontalScrollView topShelfScroll = (FadingHorizontalScrollView)this.getView().findViewById(R.id.topShelfScroll);
+      topShelfScroll.setInitialScrollX(this.topShelfScrollX);
+      gotoViewFor(text);
+    }
   }
   @Override
   public void onSaveInstanceState(Bundle outState) {
     super.onSaveInstanceState(outState);
-    if (mTabState != -1)
-      outState.putInt("tab", mTabState);
+    if (getActiveTab() != -1) {
+      outState.putInt("tab", getActiveTab());
+      outState.putInt("topShelfScrollX", ((FadingHorizontalScrollView)this.getView().findViewById(R.id.topShelfScroll)).getScrollX());
+    }
   }
   private void connectTopShelfViews(View view, LinearLayout shelf, FrameLayout content) {
     if (shelf == null) return;
@@ -95,6 +135,7 @@ public class MetroBarFragment extends Fragment {
         pager.setCurrentItem(0);
         for (int j = 0; j < nextShelf.getChildCount(); j++) {
           TextView nextText = (TextView)nextShelf.getChildAt(j);
+          this.parentTextMap.put(nextText.getId(), text.getId());
           nextText.setOnClickListener(new NestedTabClickListener(nextText, nextShelf));
           nextText.setTag(pager);
           this.texts.add(nextText);
@@ -182,16 +223,19 @@ public class MetroBarFragment extends Fragment {
           anims.add(ObjectAnimator.ofFloat(p, "alpha", p.getAlpha(), 0.0f));
         else if (p == this.pagerToShow) {
           p.setVisibility(View.VISIBLE);
-          p.setAlpha(0.0f);
-          anims.add(ObjectAnimator.ofFloat(p, "alpha", 0.0f, 1.0f));
+          anims.add(ObjectAnimator.ofFloat(p, "alpha", p.getAlpha(), 1.0f));
         }
       }
+      animateScrollToView(anims, this.text);
       animateTextHighlight(anims, this.text);
       if (this.shelfToShow != null) {
-        animateTextHighlight(anims, (TextView)this.shelfToShow.getChildAt(0));
+        TextView childToShow = (TextView)this.shelfToShow.getChildAt(0);
+        animateTextHighlight(anims, childToShow);
         animateShelves(anims, this.shelfToShow);
+        setActiveTab(childToShow.getId());
       } else {
         animateShelves(anims, topShelf);
+        setActiveTab(this.text.getId());
       }
       set.playTogether(anims);
       set.setDuration(DURATION);
@@ -208,6 +252,21 @@ public class MetroBarFragment extends Fragment {
     }
   }
   
+  private void animateScrollToView(List<Animator> anims, TextView text) {
+    FadingHorizontalScrollView shelfScroll = (FadingHorizontalScrollView)text.getParent().getParent();
+    int left = text.getLeft();
+    if (this.parentShelfMap.get(((View)text.getParent()).getId()) == -1 &&
+        text.getTextSize() == normalSize) {
+      // in the top shelf
+      left = (int)(text.getLeft() * 1.6f);
+    }
+    left -= TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_PT, 5, this.getResources().getDisplayMetrics());
+    if (anims != null)
+      anims.add(ObjectAnimator.ofInt(shelfScroll, "scrollX", shelfScroll.getScrollX(), left));
+    else
+      shelfScroll.scrollTo(left, shelfScroll.getScrollY());
+  }
+  
   private void animateTextHighlight(List<Animator> anims, TextView text) {
     for (TextView t : this.texts) {
       if (t.getParent() == text.getParent()) {
@@ -215,13 +274,19 @@ public class MetroBarFragment extends Fragment {
           int color = t.getTextColors().getDefaultColor();
           final int white = getResources().getColor(android.R.color.white);
           if (color != white) {
-            anims.add(ColorAnimator.ofColor(t, color, white));
+            if (anims != null)
+              anims.add(ColorAnimator.ofColor(t, color, white));
+            else
+              t.setTextColor(white);
           }
         } else {
           int color = text.getTextColors().getDefaultColor();
           final int blue = getResources().getColor(android.R.color.holo_blue_dark);
           if (color != blue) {
-            anims.add(ColorAnimator.ofColor(text, color, blue));
+            if (anims != null)
+              anims.add(ColorAnimator.ofColor(text, color, blue));
+            else
+              text.setTextColor(blue);
           }
         }
       }
@@ -241,6 +306,7 @@ public class MetroBarFragment extends Fragment {
       AnimatorSet set = new AnimatorSet();
       List<Animator> anims = new ArrayList<Animator>(4);
       animateTextHighlight(anims, this.text);
+      hideShelvesUnlessAncestorOf(this.thisShelf);
       animateShelves(anims, this.thisShelf);
       set.playTogether(anims);
       set.setDuration(DURATION);
@@ -254,30 +320,42 @@ public class MetroBarFragment extends Fragment {
     if (shelfId == -1) return false;
     return isAncestorShelfOf(ancestorId, this.parentShelfMap.get(shelfId));
   }
-
+  
   private void animateShelves(List<Animator> anims, LinearLayout target) {
     for (int i = 0; i < target.getChildCount(); i++) {
       TextView text = (TextView)target.getChildAt(i);
       float size = text.getTextSize();
-      anims.add(TextSizeAnimator.animate(text, size, normalSize));
+      if (anims != null)
+        anims.add(TextSizeAnimator.animate(text, size, normalSize));
+      else
+        text.setTextSize(TypedValue.COMPLEX_UNIT_PX, normalSize);
       text.setPivotY(text.getHeight());
     }
     for (LinearLayout shelf : this.shelves) {
       if (shelf == target) {
-        anims.add(ObjectAnimator.ofFloat(shelf, "alpha", shelf.getAlpha(), 1.0f));
-//        if (shelf != this.getView().findViewById(R.id.topShelf))
-//          anims.add(ObjectAnimator.ofFloat(shelf, "scaleY", 0, 1));
+        if (anims != null)
+          anims.add(ObjectAnimator.ofFloat(shelf, "alpha", shelf.getAlpha(), 1.0f));
+        else
+          shelf.setAlpha(1.0f);
       } else if (isAncestorShelfOf(shelf.getId(), target.getId())) {
-        anims.add(ObjectAnimator.ofFloat(shelf, "alpha", shelf.getAlpha(), 1.0f));
+        if (anims != null)
+          anims.add(ObjectAnimator.ofFloat(shelf, "alpha", shelf.getAlpha(), 1.0f));
+        else
+          shelf.setAlpha(1.0f);
         for (int i = 0; i < shelf.getChildCount(); i++) {
           TextView text = (TextView)shelf.getChildAt(i);
           float size = text.getTextSize();
-          anims.add(TextSizeAnimator.animate(text, size, largerSize));
+          if (anims != null)
+            anims.add(TextSizeAnimator.animate(text, size, largerSize));
+          else
+            text.setTextSize(TypedValue.COMPLEX_UNIT_PX, largerSize);
           text.setPivotY(text.getHeight());
         }
-//        anims.add(MarginAnimator.ofMargin(shelf, MarginAnimator.Margin.BOTTOM, -target.getMeasuredHeight(), 0));
       } else {
-        anims.add(ObjectAnimator.ofFloat(shelf, "alpha", shelf.getAlpha(), 0.0f));
+        if (anims != null)
+          anims.add(ObjectAnimator.ofFloat(shelf, "alpha", shelf.getAlpha(), 1.0f));
+        else
+          shelf.setAlpha(0.0f);
       }
       shelf.setPivotX(shelf.getScrollX());
       shelf.setPivotY(shelf.getHeight());
@@ -312,8 +390,6 @@ public class MetroBarFragment extends Fragment {
       return null;
 
     Fragment ret = null;
-    // Update the mTabState
-    mTabState = text.getId();
 
     TabShelfAdapter shelfAdapter = (TabShelfAdapter)pager.getAdapter();
     int index = shelfAdapter.getIndexOf(text);
@@ -327,13 +403,27 @@ public class MetroBarFragment extends Fragment {
 
     Fragment ret = null;
     // Update the mTabState
-    mTabState = text.getId();
+    setActiveTab(text.getId());
 
     TabShelfAdapter shelfAdapter = (TabShelfAdapter)pager.getAdapter();
     int index = shelfAdapter.getIndexOf(text);
     ret = shelfAdapter.getItem(index);
     pager.setCurrentItem(index, true);
     return ret;
+  }
+
+  public int getActiveTab() {
+    return mTabState;
+  }
+  protected void setActiveTab(int mTabState) {
+    this.mTabState = mTabState;
+    String idName;
+    try {
+      idName = this.getResources().getResourceName(mTabState);
+    } catch (NotFoundException e) {
+      idName = "UNKNOWN ID";
+    }
+    Log.v("MetroBarFragment", "Setting active tab to " + idName);
   }
 
   private class PageChangeListener implements OnPageChangeListener {
@@ -349,6 +439,7 @@ public class MetroBarFragment extends Fragment {
     }
     public void onPageSelected(int position) {
       TextView text = (TextView)this.shelf.getChildAt(position);
+      MetroBarFragment.this.setActiveTab(text.getId());
       AnimatorSet set = new AnimatorSet();
       List<Animator> anims = new ArrayList<Animator>(10);
       animateTextHighlight(anims, text);

@@ -80,7 +80,10 @@ public class Playlist extends ListFragment {
     final String path = this.cursor.getString(dataCol);
     try {
       Mp3File file = new Mp3File(path, false);
-      Toast.makeText(this.getActivity(), "Group is " + file.getId3v2Tag().getGrouping(), Toast.LENGTH_SHORT).show();
+      String group = file.getId3v2Tag().getGrouping();
+      if (group == null)
+        group = "<null>";
+      Toast.makeText(this.getActivity(), "Group is " + group, Toast.LENGTH_SHORT).show();
     } catch (Exception e) {
       e.printStackTrace();
     }

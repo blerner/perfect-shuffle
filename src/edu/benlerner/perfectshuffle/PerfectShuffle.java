@@ -17,6 +17,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
 import android.view.Menu;
@@ -59,11 +60,33 @@ public class PerfectShuffle extends FragmentActivity {
     f.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
     f.addDataScheme("file");
     registerReceiver(mScanListener, f);
+    this.destroyForConfigChange = false;
   }
   @Override
   protected void onStart() {
     super.onStart();
   }
+  boolean destroyForConfigChange;
+  @Override
+  public Object onRetainCustomNonConfigurationInstance() {
+    this.destroyForConfigChange = true;
+    return super.onRetainCustomNonConfigurationInstance();
+  }
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    if (!this.destroyForConfigChange) {
+      try {
+        if (MusicUtils.sService != null && MusicUtils.sService.isPlaying())
+          MusicUtils.sService.stop();
+      } catch (RemoteException e) {
+      }
+    }
+    MusicUtils.unbindFromService(mToken);
+    unregisterReceiver(mScanListener);
+  }
+  
+
   private static class PerfectShuffleHandler extends Handler {
     final WeakReference<PerfectShuffle> shuffle;
     public PerfectShuffleHandler(PerfectShuffle shuffle) {
@@ -105,13 +128,7 @@ public class PerfectShuffle extends FragmentActivity {
   private BroadcastReceiver mScanListener;
 
   private Handler           mPerfectShuffleHandler;
-  @Override
-  protected void onDestroy() {
-    super.onDestroy();
-    MusicUtils.unbindFromService(mToken);
-    unregisterReceiver(mScanListener);
-  }
-  
+
   public void playSong(String path) {
     MetroBarFragment mb = (MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
     PlayControls pc = (PlayControls)mb.gotoViewFor((TextView)this.findViewById(R.id.current));
@@ -126,9 +143,11 @@ public class PerfectShuffle extends FragmentActivity {
   private class PreloadAlbumArtTask extends AsyncTask<BitmapDrawable, Void, Void> {
     Activity act;
     ContentResolver cr;
+    boolean foundAnything;
     public PreloadAlbumArtTask(Activity act) {
       this.act = act;
       this.cr = act.getContentResolver();
+      this.foundAnything = false;
     }
     
     @Override
@@ -143,6 +162,7 @@ public class PerfectShuffle extends FragmentActivity {
       final String where = android.provider.MediaStore.Audio.Media.ALBUM_ID  + "=?";
       while (audioCursor.moveToNext()) {
         if (MusicUtils.getCachedArtwork(act, audioCursor.getInt(0), null) == null) {
+          this.foundAnything = true;
           Cursor albumCursor = this.cr.query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, colsData,
               where, new String[] { String.valueOf(audioCursor.getInt(0)) }, null);
           albumCursor.moveToPosition(-1);
@@ -163,7 +183,8 @@ public class PerfectShuffle extends FragmentActivity {
 
     @Override
     protected void onPostExecute(Void result) {
-      Toast.makeText(this.act, "Finished preloading album art", Toast.LENGTH_SHORT).show();
+      if (this.foundAnything)
+        Toast.makeText(this.act, "Finished preloading album art", Toast.LENGTH_SHORT).show();
     }
   }
 }
