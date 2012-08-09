@@ -20,7 +20,7 @@
             android:layout_height="fill_parent"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
-            android:layout_marginTop="96dip" >
+            android:layout_marginTop="80dip" >
 
             <android.support.v4.view.ViewPager
                 android:id="@+id/pager:1"
@@ -62,7 +62,7 @@
             android:id="@+id/metrobar"
             android:name="edu.benlerner.perfectshuffle.MetroBarFragment"
             android:layout_width="match_parent"
-            android:layout_height="96dip"
+            android:layout_height="80dip"
             android:gravity="bottom"
             tools:layout="@layout/metrobar" />
     </RelativeLayout>

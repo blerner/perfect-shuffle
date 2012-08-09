@@ -3,6 +3,8 @@ package edu.benlerner.perfectshuffle;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.benlerner.perfectshuffle.ExpandoGroup.MarginAnimator;
+
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
@@ -22,6 +24,7 @@ import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -94,9 +97,12 @@ public class MetroBarFragment extends Fragment {
       LinearLayout shelf = (LinearLayout)text.getParent();
       hideShelvesUnlessAncestorOf(shelf);
       animateShelves(null, shelf);
+      animateShelfBottoms(null, 0);
       FadingHorizontalScrollView topShelfScroll = (FadingHorizontalScrollView)this.getView().findViewById(R.id.topShelfScroll);
       topShelfScroll.setInitialScrollX(this.topShelfScrollX);
       gotoViewFor(text);
+    } else {
+      ((ViewPager)topText.getTag()).setVisibility(View.VISIBLE);
     }
   }
   @Override
@@ -232,9 +238,11 @@ public class MetroBarFragment extends Fragment {
         TextView childToShow = (TextView)this.shelfToShow.getChildAt(0);
         animateTextHighlight(anims, childToShow);
         animateShelves(anims, this.shelfToShow);
+        animateShelfBottoms(anims, 0);
         setActiveTab(childToShow.getId());
       } else {
         animateShelves(anims, topShelf);
+        animateShelfBottoms(anims, 8);
         setActiveTab(this.text.getId());
       }
       set.playTogether(anims);
@@ -308,6 +316,7 @@ public class MetroBarFragment extends Fragment {
       animateTextHighlight(anims, this.text);
       hideShelvesUnlessAncestorOf(this.thisShelf);
       animateShelves(anims, this.thisShelf);
+      animateShelfBottoms(anims, 0);
       set.playTogether(anims);
       set.setDuration(DURATION);
       set.start();
@@ -321,6 +330,21 @@ public class MetroBarFragment extends Fragment {
     return isAncestorShelfOf(ancestorId, this.parentShelfMap.get(shelfId));
   }
   
+  private void animateShelfBottoms(List<Animator> anims, int bottomMargin) {
+    LinearLayout topShelf = (LinearLayout)this.getView().findViewById(R.id.topShelf);
+    // Due to a weid bug in Android, this appears to work best if it always goes to zero: the prior margin gets used on collapse
+    // even though it shouldn't.  And on re-orientation, it goes back to its prior value.
+    bottomMargin = 0;//(int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, bottomMargin, this.getResources().getDisplayMetrics());
+    for (int i = 0; i < topShelf.getChildCount(); i++) {
+      MarginLayoutParams params = (MarginLayoutParams)topShelf.getChildAt(i).getLayoutParams();
+      if (anims != null)
+        anims.add(MarginAnimator.ofMargin(topShelf.getChildAt(i), MarginAnimator.Margin.BOTTOM, params.bottomMargin, bottomMargin));
+      else {
+        params.bottomMargin = bottomMargin;
+        topShelf.requestLayout();
+      }
+    }
+  }
   private void animateShelves(List<Animator> anims, LinearLayout target) {
     for (int i = 0; i < target.getChildCount(); i++) {
       TextView text = (TextView)target.getChildAt(i);
