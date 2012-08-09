@@ -22,8 +22,17 @@ import android.widget.ToggleButton;
 public class PlayControls extends Fragment {
   SeekBar mProgress;
   TextView mStartTime;
+  View mainView;
+  ToggleButton mPlay;
+  TextView mEndTime;
+  TextView mSongName;
+  TextView mAlbumName;
+  TextView mArtistName;
+  ImageView mAlbumArt;
 
   private static final int REFRESH = 1;
+  private static final int PLAYSONG = 2;
+  
   private static class RefreshHandler extends Handler {
     final WeakReference<PlayControls> pc;
     public RefreshHandler(PlayControls pc) {
@@ -39,6 +48,8 @@ public class PlayControls extends Fragment {
         long next = this.getPC().refreshNow();
         this.getPC().queueNextRefresh(next);
         break;
+      case PLAYSONG:
+        this.getPC().playSong((String)msg.obj);
       default:
         break;
       }
@@ -67,28 +78,49 @@ public class PlayControls extends Fragment {
     this.mRefreshHandler = null;
     super.onDestroy();
   }
+  @Override
+  public void onDestroyView() {
+    this.mainView = null;
+    this.mEndTime = null;
+    this.mPlay = null;
+    this.mProgress = null;
+    this.mStartTime = null;
+    this.mSongName = null;
+    this.mAlbumName = null;
+    this.mArtistName = null;
+    this.mAlbumArt = null;
+    super.onDestroyView();
+  }
 
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    View view = inflater.inflate(R.layout.current_song, container, false);
+    this.mainView = inflater.inflate(R.layout.current_song, container, false);
+
     final PlayControls frag = this;
-    this.mStartTime = (TextView)view.findViewById(R.id.startTime);
-    this.mProgress = (SeekBar)view.findViewById(R.id.seekBar);
+    this.mStartTime = (TextView)mainView.findViewById(R.id.startTime);
+    this.mProgress = (SeekBar)mainView.findViewById(R.id.seekBar);
+    this.mPlay = (ToggleButton)mainView.findViewById(R.id.play);
+    this.mEndTime = (TextView)mainView.findViewById(R.id.endTime);
+    this.mArtistName = (TextView)mainView.findViewById(R.id.artistName);
+    this.mAlbumName = (TextView)mainView.findViewById(R.id.albumName);
+    this.mSongName = (TextView)mainView.findViewById(R.id.songTitle);
+    this.mAlbumArt = (ImageView)mainView.findViewById(R.id.albumArt);
     View.OnClickListener clickHandler = new View.OnClickListener() {
       public void onClick(View v) {
         frag.onClick(v);
       }
     };
-    ToggleButton play = ((ToggleButton)view.findViewById(R.id.play));
-    play.setOnClickListener(clickHandler);
+    this.mPlay.setOnClickListener(clickHandler);
     try {
-      play.setChecked(MusicUtils.sService.isPlaying());
+      this.mPlay.setChecked(MusicUtils.sService.isPlaying());
     } catch (Exception e) {
     }
-    ((ImageButton)view.findViewById(R.id.rew)).setOnClickListener(clickHandler);
-    ((ImageButton)view.findViewById(R.id.fwd)).setOnClickListener(clickHandler);
-    return view;
+    ((ImageButton)this.mainView.findViewById(R.id.rew)).setOnClickListener(clickHandler);
+    ((ImageButton)this.mainView.findViewById(R.id.fwd)).setOnClickListener(clickHandler);
+    readInfoFromService();
+    return this.mainView;
   }
+  
   @Override
   public void onResume() {
     super.onResume();
@@ -96,14 +128,18 @@ public class PlayControls extends Fragment {
     queueNextRefresh(next);
     readInfoFromService();
   }
+  boolean readInfoStillNeeded = false;
   public void readInfoFromService() {
     try {
-      View view = this.getView();
-      if (view == null) return;
-      ImageView albumArt = (ImageView)view.findViewById(R.id.albumArt);
-      int width = albumArt.getWidth();
+      if (MusicUtils.sService == null || this.mainView == null) {
+        this.readInfoStillNeeded = true;
+        queueNextRefresh(200);
+        return;
+      }
+      this.mPlay.setChecked(!MusicUtils.sService.isPlaying());
+      int width = this.mAlbumArt.getWidth();
       if (width <= 0) {
-        view.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+        this.mainView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
           public void onGlobalLayout() {
             if (getView().getWidth() > 0) {
               getView().getViewTreeObserver().removeGlobalOnLayoutListener(this);
@@ -113,11 +149,16 @@ public class PlayControls extends Fragment {
         });
         return;
       }
-      albumArt.setImageResource(R.drawable.eighth_notes);
-      if (MusicUtils.sService == null) return;
-      TextView endTime = (TextView)this.getView().findViewById(R.id.endTime);
-      endTime.setText(MusicUtils.makeTimeString(this.getActivity(), MusicUtils.sService.duration() / 1000));
+      this.readInfoStillNeeded = false;
       long albumId = MusicUtils.sService.getAlbumId();
+      if (albumId == -1 && MusicUtils.sService.getPath() != null) {
+        MusicUtils.sService.openFile(MusicUtils.sService.getPath());
+        albumId = MusicUtils.sService.getAlbumId();
+      }
+      this.mEndTime.setText(MusicUtils.makeTimeString(this.getActivity(), MusicUtils.sService.duration() / 1000));
+      this.mArtistName.setText(MusicUtils.sService.getArtistName());
+      this.mAlbumName.setText(MusicUtils.sService.getAlbumName());
+      this.mSongName.setText(MusicUtils.sService.getTrackName());
       Bitmap art = null;
       if (albumId != -1) {
         art = MusicUtils.getArtworkQuick(this.getActivity(), albumId, width, width);
@@ -127,7 +168,9 @@ public class PlayControls extends Fragment {
         art = Bitmap.createScaledBitmap(art, width, width, true);
       }
       if (art != null) {
-        albumArt.setImageBitmap(art);
+        this.mAlbumArt.setImageBitmap(art);
+      } else {
+        this.mAlbumArt.setImageResource(R.drawable.eighth_notes);
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -176,21 +219,22 @@ public class PlayControls extends Fragment {
   }
 
   private long refreshNow() {
-    IMediaPlaybackService mService = MusicUtils.sService;
-    if (mService == null || this.mProgress == null) return 500;
+    if (this.readInfoStillNeeded)
+      readInfoFromService();
+    if (MusicUtils.sService == null || this.mProgress == null) return 500;
     try {
-      long pos = mService.position();
-      long duration = mService.duration();
+      long pos = MusicUtils.sService.position();
+      long duration = MusicUtils.sService.duration();
       if ((pos >= 0) && (duration > 0)) {
         Context cxt = this.getActivity();
         if (cxt != null)
-          mStartTime.setText(MusicUtils.makeTimeString(this.getActivity(), pos / 1000));
+          this.mStartTime.setText(MusicUtils.makeTimeString(this.getActivity(), pos / 1000));
         int progress = (int)(1000 * pos / duration);
-        mProgress.setProgress(progress);
+        this.mProgress.setProgress(progress);
 
-        if (!mService.isPlaying()) { return 500; }
+        if (!MusicUtils.sService.isPlaying()) { return 500; }
       } else {
-        mProgress.setProgress(1000);
+        this.mProgress.setProgress(1000);
       }
       // calculate the number of milliseconds until the next full second, so
       // the counter can be updated at just the right time
@@ -198,7 +242,7 @@ public class PlayControls extends Fragment {
 
       // approximate how often we would need to refresh the slider to
       // move it smoothly
-      int width = mProgress.getWidth();
+      int width = this.mProgress.getWidth();
       if (width == 0) width = 320;
       long smoothrefreshtime = duration / width;
 
