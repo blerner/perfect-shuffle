@@ -31,6 +31,7 @@ public class PerfectShuffle extends FragmentActivity {
 
   private static final int QUIT = 2;
   private static final int RESCAN = 3;
+
   
   //private PlayControls currentPlaying;
   private void initializeUI() {
@@ -61,10 +62,6 @@ public class PerfectShuffle extends FragmentActivity {
     f.addDataScheme("file");
     registerReceiver(mScanListener, f);
     this.destroyForConfigChange = false;
-  }
-  @Override
-  protected void onStart() {
-    super.onStart();
   }
   boolean destroyForConfigChange;
   @Override
@@ -131,7 +128,7 @@ public class PerfectShuffle extends FragmentActivity {
 
   public void playSong(String path) {
     MetroBarFragment mb = (MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
-    PlayControls pc = (PlayControls)mb.gotoViewFor((TextView)this.findViewById(R.id.current));
+    PlayControls pc = (PlayControls)mb.getViewFor((TextView)this.findViewById(R.id.current));
     pc.playSong(path);
   }
 
