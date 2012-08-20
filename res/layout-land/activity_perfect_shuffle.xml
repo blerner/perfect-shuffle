@@ -1,6 +1,5 @@
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_height="wrap_content" >
+    xmlns:tools="http://schemas.android.com/tools" >
 
     <ImageView
         android:layout_width="fill_parent"
@@ -21,7 +20,7 @@
             android:layout_height="fill_parent"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
-            android:layout_marginTop="80dip" >
+            android:layout_marginTop="40dip" >
 
             <android.support.v4.view.ViewPager
                 android:id="@+id/pager:1"
@@ -62,7 +61,7 @@
         <FrameLayout
             android:id="@+id/metrobarContainer"
             android:layout_width="match_parent"
-            android:layout_height="80dip">
+            android:layout_height="40dip">
           <fragment
               android:id="@+id/metrobar"
               android:name="edu.benlerner.perfectshuffle.MetroBarFragment"

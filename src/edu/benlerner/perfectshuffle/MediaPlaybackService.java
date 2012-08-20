@@ -1917,66 +1917,43 @@ public class MediaPlaybackService extends Service {
       mHandler = handler;
     }
 
-    MediaPlayer.OnCompletionListener listener      = new MediaPlayer.OnCompletionListener() {
-                                                     public void onCompletion(MediaPlayer mp) {
-                                                       if (mp == mCurrentMediaPlayer && mNextMediaPlayer != null) {
-                                                         mCurrentMediaPlayer.release();
-                                                         mCurrentMediaPlayer = mNextMediaPlayer;
-                                                         mNextMediaPlayer = null;
-                                                         mHandler.sendEmptyMessage(TRACK_WENT_TO_NEXT);
-                                                       } else {
-                                                         // Acquire a temporary
-                                                         // wakelock, since when
-                                                         // we return from
-                                                         // this callback the
-                                                         // MediaPlayer will
-                                                         // release its wakelock
-                                                         // and allow the device
-                                                         // to go to sleep.
-                                                         // This temporary
-                                                         // wakelock is released
-                                                         // when the
-                                                         // RELEASE_WAKELOCK
-                                                         // message is
-                                                         // processed, but just
-                                                         // in case, put a
-                                                         // timeout on it.
-                                                         mWakeLock.acquire(30000);
-                                                         mHandler.sendEmptyMessage(TRACK_ENDED);
-                                                         mHandler.sendEmptyMessage(RELEASE_WAKELOCK);
-                                                       }
-                                                     }
-                                                   };
+    MediaPlayer.OnCompletionListener listener = new MediaPlayer.OnCompletionListener() {
+      public void onCompletion(MediaPlayer mp) {
+        if (mp == mCurrentMediaPlayer && mNextMediaPlayer != null) {
+          mCurrentMediaPlayer.release();
+          mCurrentMediaPlayer = mNextMediaPlayer;
+          mNextMediaPlayer = null;
+          mHandler.sendEmptyMessage(TRACK_WENT_TO_NEXT);
+        } else {
+          // Acquire a temporary wakelock, since when we return from this callback the MediaPlayer will release its wakelock
+          // and allow the device to go to sleep. This temporary wakelock is released when the RELEASE_WAKELOCK message is
+          // processed, but just in case, put a timeout on it.
+          mWakeLock.acquire(30000);
+          mHandler.sendEmptyMessage(TRACK_ENDED);
+          mHandler.sendEmptyMessage(RELEASE_WAKELOCK);
+        }
+      }
+    };
 
-    MediaPlayer.OnErrorListener      errorListener = new MediaPlayer.OnErrorListener() {
-                                                     public boolean onError(MediaPlayer mp, int what, int extra) {
-                                                       switch (what) {
-                                                       case MediaPlayer.MEDIA_ERROR_SERVER_DIED:
-                                                         mIsInitialized = false;
-                                                         mCurrentMediaPlayer.release();
-                                                         // Creating a new
-                                                         // MediaPlayer and
-                                                         // settings its
-                                                         // wakemode does not
-                                                         // require the media
-                                                         // service, so it's OK
-                                                         // to do this now,
-                                                         // while the
-                                                         // service is still
-                                                         // being restarted
-                                                         mCurrentMediaPlayer = new CompatMediaPlayer();
-                                                         mCurrentMediaPlayer.setWakeMode(MediaPlaybackService.this,
-                                                             PowerManager.PARTIAL_WAKE_LOCK);
-                                                         mHandler.sendMessageDelayed(
-                                                             mHandler.obtainMessage(SERVER_DIED), 2000);
-                                                         return true;
-                                                       default:
-                                                         Log.d("MultiPlayer", "Error: " + what + "," + extra);
-                                                         break;
-                                                       }
-                                                       return false;
-                                                     }
-                                                   };
+    MediaPlayer.OnErrorListener errorListener = new MediaPlayer.OnErrorListener() {
+      public boolean onError(MediaPlayer mp, int what, int extra) {
+        switch (what) {
+        case MediaPlayer.MEDIA_ERROR_SERVER_DIED:
+          mIsInitialized = false;
+          mCurrentMediaPlayer.release();
+          // Creating a new MediaPlayer and settings its wakemode does not require the media service, so it's OK
+          // to do this now, while the service is still being restarted
+          mCurrentMediaPlayer = new CompatMediaPlayer();
+          mCurrentMediaPlayer.setWakeMode(MediaPlaybackService.this, PowerManager.PARTIAL_WAKE_LOCK);
+          mHandler.sendMessageDelayed(mHandler.obtainMessage(SERVER_DIED), 2000);
+          return true;
+        default:
+          Log.d("MultiPlayer", "Error: " + what + "," + extra);
+          break;
+        }
+        return false;
+      }
+    };
 
     public long duration() {
       return mCurrentMediaPlayer.getDuration();

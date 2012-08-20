@@ -1,7 +1,9 @@
 package edu.benlerner.perfectshuffle;
 
 import java.lang.ref.WeakReference;
+import java.util.List;
 
+import android.animation.Animator;
 import android.app.Activity;
 
 import android.content.BroadcastReceiver;
@@ -9,6 +11,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -20,10 +23,14 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
+import android.util.TypedValue;
 import android.view.Menu;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import edu.benlerner.perfectshuffle.ExpandoGroup.SizeAnimator;
+import edu.benlerner.perfectshuffle.ExpandoGroup.SizeAnimator.Size;
+import edu.benlerner.perfectshuffle.MetroBarFragment.AnimationReason;
 import edu.benlerner.perfectshuffle.MusicUtils.ServiceToken;
 
 public class PerfectShuffle extends FragmentActivity {
@@ -31,12 +38,50 @@ public class PerfectShuffle extends FragmentActivity {
 
   private static final int QUIT = 2;
   private static final int RESCAN = 3;
+  public static final int AUTO_COLLAPSE = 4;
 
   
+  private void collapseMetroBar() {
+    MetroBarFragment metrobar = (MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
+    metrobar.collapseIfStillNeeded();
+  }
   //private PlayControls currentPlaying;
   private void initializeUI() {
     MetroBarFragment metrobar = (MetroBarFragment)this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
     metrobar.initialize((FrameLayout)this.findViewById(R.id.fragment_content));
+    final FrameLayout metrobarContainer = (FrameLayout)this.findViewById(R.id.metrobarContainer);
+    final int halfHeightDip = (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, this.getResources().getDisplayMetrics());
+    final int fullHeightDip = (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 80, this.getResources().getDisplayMetrics());
+    if (this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
+      metrobarContainer.getLayoutParams().height = fullHeightDip;
+      metrobar.setDisplayMode(MetroBarFragment.DisplayMode.FULL_HEIGHT, null);
+    } else {
+      metrobar.setDisplayMode(MetroBarFragment.DisplayMode.ONE_LINE, null);
+      metrobarContainer.getLayoutParams().height = halfHeightDip;
+      metrobar.addCustomAnimator(new MetroBarFragment.CustomAnimator() {
+        @Override
+        public void animateFragment(List<Animator> anims, MetroBarFragment fragment, AnimationReason reason) {
+          switch (reason) {
+          case COLLAPSE:
+            if (anims != null) {
+              anims.add(SizeAnimator.ofSize(metrobarContainer, Size.HEIGHT, fullHeightDip, halfHeightDip));
+            } else {
+              metrobarContainer.getLayoutParams().height = halfHeightDip;
+            }
+            break;
+          case EXPAND:
+            if (anims != null) {
+              anims.add(SizeAnimator.ofSize(metrobarContainer, Size.HEIGHT, halfHeightDip, fullHeightDip));
+            } else {
+              metrobarContainer.getLayoutParams().height = fullHeightDip;
+            }
+            break;
+          case SETUP:
+            break;
+          }
+        }
+      });
+    }
     //this.currentPlaying = (PlayControls)metrobar.getViewFor((TextView)this.findViewById(R.id.current));
   }
   @Override
@@ -46,8 +91,6 @@ public class PerfectShuffle extends FragmentActivity {
     setContentView(R.layout.activity_perfect_shuffle);
     initializeUI();
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
-    new PreloadAlbumArtTask(this)
-      .execute(new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(), R.drawable.eighth_notes)));
     this.mPerfectShuffleHandler = new PerfectShuffleHandler(this);
     this.mScanListener  = new BroadcastReceiver() {
       @Override
@@ -55,13 +98,32 @@ public class PerfectShuffle extends FragmentActivity {
         mPerfectShuffleHandler.sendEmptyMessage(RESCAN);
       }
     };
+    this.mPlayListener = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context context, Intent intent) {
+        MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getSupportFragmentManager().findFragmentById(R.id.metrobar);
+        PlayControls pc = (PlayControls)mb.getViewFor((TextView)PerfectShuffle.this.findViewById(R.id.current));
+        pc.readInfoFromService();
+      }
+    };
+    this.mPerfectShuffleHandler.sendEmptyMessage(RESCAN);
     IntentFilter f = new IntentFilter();
     f.addAction(Intent.ACTION_MEDIA_SCANNER_STARTED);
     f.addAction(Intent.ACTION_MEDIA_SCANNER_FINISHED);
     f.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
     f.addDataScheme("file");
     registerReceiver(mScanListener, f);
+    f = new IntentFilter();
+    f.addAction(MediaPlaybackService.PLAYSTATE_CHANGED);
+    f.addAction(MediaPlaybackService.META_CHANGED);
+    registerReceiver(mPlayListener, f);
     this.destroyForConfigChange = false;
+  }
+  public void sendEmptyMessage(int message) {
+    this.mPerfectShuffleHandler.sendEmptyMessage(message);
+  }
+  public void sendEmptyMessageDelayed(int message, int delayMillis) {
+    this.mPerfectShuffleHandler.sendEmptyMessageDelayed(message, delayMillis);
   }
   boolean destroyForConfigChange;
   @Override
@@ -81,6 +143,7 @@ public class PerfectShuffle extends FragmentActivity {
     }
     MusicUtils.unbindFromService(mToken);
     unregisterReceiver(mScanListener);
+    unregisterReceiver(mPlayListener);
   }
   
 
@@ -94,10 +157,16 @@ public class PerfectShuffle extends FragmentActivity {
     }
     @Override
     public void handleMessage(Message msg) {
+      PerfectShuffle shuffle;
       switch (msg.what) {
+      case AUTO_COLLAPSE:
+        shuffle = this.getShuffle();
+        shuffle.collapseMetroBar();
+        break;
       case RESCAN:
-        //MetroBarFragment mb = (MetroBarFragment)PerfectShuffle.this.getFragmentManager().findFragmentById(R.id.metrobar);
-        Toast.makeText(this.getShuffle(), "Going to rescan albums", Toast.LENGTH_SHORT).show();
+        shuffle = this.getShuffle();
+        shuffle.new PreloadAlbumArtTask(shuffle)
+          .execute(new BitmapDrawable(shuffle.getResources(), BitmapFactory.decodeResource(shuffle.getResources(), R.drawable.eighth_notes)));
         break;
       case QUIT:
 //                // This can be moved back to onCreate once the bug that prevents
@@ -123,6 +192,7 @@ public class PerfectShuffle extends FragmentActivity {
   
   
   private BroadcastReceiver mScanListener;
+  private BroadcastReceiver mPlayListener;
 
   private Handler           mPerfectShuffleHandler;
 

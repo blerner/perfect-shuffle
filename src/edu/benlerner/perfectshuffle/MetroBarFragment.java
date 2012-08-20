@@ -27,6 +27,7 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -36,13 +37,150 @@ public class MetroBarFragment extends Fragment {
   private List<LinearLayout> shelves   = new ArrayList<LinearLayout>(3);
   private List<TextView>     texts     = new ArrayList<TextView>(10);
   private List<ViewPager>    pagers    = new ArrayList<ViewPager>(5);
+  private ImageView          expando   = null;
   private SparseIntArray parentShelfMap = new SparseIntArray(10);
   private SparseIntArray parentTextMap = new SparseIntArray(2); // maps from "Current" or "Playing" in the second shelf to "Now Playing" in the top shelf
   final int DURATION = 500;
   float normalSize;
   float largerSize;
   int topShelfScrollX;
+
   
+  public enum DisplayMode {
+    FULL_HEIGHT,
+    COLLAPSABLE,
+    COLLAPSED,
+    ONE_LINE
+  }
+  private DisplayMode displayMode;
+  private void fadeOut(View target, List<Animator> anims) {
+    if (anims != null) {
+      target.setVisibility(View.VISIBLE);
+      target.setAlpha(1.f);
+      anims.add(ObjectAnimator.ofFloat(target, "alpha", 1.f, 0.f));
+    } else
+      target.setVisibility(View.INVISIBLE);
+  }
+  private void fadeIn(View target, List<Animator> anims) {
+    if (anims != null) {
+      target.setAlpha(0.f);
+      target.setVisibility(View.VISIBLE);
+      anims.add(ObjectAnimator.ofFloat(target, "alpha", 0.f, 1.f));
+    } else {
+      target.setAlpha(1.f);
+      target.setVisibility(View.VISIBLE);
+    }
+  }
+  private void setOneShotCancelableTimer() {
+    PerfectShuffle shuffle = (PerfectShuffle)this.getActivity();
+    if (shuffle == null) return;
+    shuffle.sendEmptyMessageDelayed(PerfectShuffle.AUTO_COLLAPSE, 1500);
+  }
+  boolean didTimerAlready = false;
+  public void collapseIfStillNeeded() {
+    if (didTimerAlready) return;
+    didTimerAlready = true;
+    if (displayMode == DisplayMode.COLLAPSABLE)
+      setDisplayMode(DisplayMode.COLLAPSED, new ArrayList<Animator>());
+  }
+  public void setDisplayMode(DisplayMode newMode, List<Animator> anims) {
+    FadingHorizontalScrollView topShelf = (FadingHorizontalScrollView)this.getView().findViewById(R.id.topShelfScroll);
+    switch (this.displayMode) {
+    case FULL_HEIGHT:
+      switch (newMode) {
+      case FULL_HEIGHT:
+        break;
+      case COLLAPSABLE:
+        this.expando.setImageResource(R.drawable.navigation_collapse);
+        fadeIn(this.expando, anims);
+        break;
+      case COLLAPSED:
+        this.expando.setImageResource(R.drawable.navigation_expand);
+        addCustomAnimators(anims, this, AnimationReason.COLLAPSE);
+        fadeOut(topShelf, anims);
+        fadeIn(this.expando, anims);
+        break;
+      case ONE_LINE:
+        addCustomAnimators(anims, this, AnimationReason.COLLAPSE);
+        break;
+      }
+      break;
+    case COLLAPSABLE:
+      switch (newMode) {
+      case FULL_HEIGHT:
+        fadeOut(this.expando, anims);
+        break;
+      case COLLAPSABLE:
+        break;
+      case COLLAPSED:
+        this.expando.setImageResource(R.drawable.navigation_expand);
+        fadeOut(topShelf, anims);
+        addCustomAnimators(anims, this, AnimationReason.COLLAPSE);
+        break;
+      case ONE_LINE:
+        fadeOut(this.expando, anims);
+        addCustomAnimators(anims, this, AnimationReason.COLLAPSE);
+        break;
+      }
+      break;
+    case COLLAPSED:
+      switch (newMode) {
+      case FULL_HEIGHT:
+        fadeOut(this.expando, anims);
+        fadeIn(topShelf, anims);
+        addCustomAnimators(anims, this, AnimationReason.EXPAND);
+        break;
+      case COLLAPSABLE:
+        this.expando.setImageResource(R.drawable.navigation_collapse);
+        fadeIn(topShelf, anims);
+        addCustomAnimators(anims, this, AnimationReason.EXPAND);
+        break;
+      case COLLAPSED:
+        break;
+      case ONE_LINE:
+        fadeOut(this.expando, anims);
+        fadeIn(topShelf, anims);
+        break;
+      }
+      break;
+    case ONE_LINE:
+      switch (newMode) {
+      case FULL_HEIGHT:
+        addCustomAnimators(anims, this, AnimationReason.EXPAND);
+        break;
+      case COLLAPSABLE:
+        this.expando.setImageResource(R.drawable.navigation_collapse);
+        addCustomAnimators(anims, this, AnimationReason.EXPAND);
+        fadeIn(this.expando, anims);
+        break;
+      case COLLAPSED:
+        this.expando.setImageResource(R.drawable.navigation_expand);
+        fadeIn(this.expando, anims);
+        fadeOut(topShelf, anims);
+        break;
+      case ONE_LINE:
+        break;
+      }
+      break;
+    }
+    this.displayMode = newMode;
+    if (anims != null) {
+      AnimatorSet set = new AnimatorSet();
+      set.playTogether(anims);
+      set.setDuration(DURATION);
+      set.start();
+      anims.clear();
+    }
+  }
+  public enum AnimationReason {
+    SETUP,
+    COLLAPSE,
+    EXPAND
+  }
+  public interface CustomAnimator {
+    void animateFragment(List<Animator> anims, MetroBarFragment fragment, AnimationReason reason);
+  }
+  private List<CustomAnimator> animators = new ArrayList<CustomAnimator>(1);
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     View mainView = inflater.inflate(R.layout.metrobar, container, false);
@@ -57,7 +195,31 @@ public class MetroBarFragment extends Fragment {
       this.setActiveTab(savedInstanceState.getInt("tab"));
       this.topShelfScrollX = savedInstanceState.getInt("topShelfScrollX");
     }
+    this.expando = (ImageView)mainView.findViewById(R.id.expando);
+    this.expando.setVisibility(View.GONE);
+    final MetroBarFragment thiz = this;
+    this.expando.setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        if (thiz.displayMode == DisplayMode.COLLAPSABLE)
+          thiz.setDisplayMode(DisplayMode.COLLAPSED, new ArrayList<Animator>());
+        else if (thiz.displayMode == DisplayMode.COLLAPSED)
+          thiz.setDisplayMode(DisplayMode.COLLAPSABLE, new ArrayList<Animator>());
+      }
+    });
+    this.displayMode = DisplayMode.FULL_HEIGHT;
     return mainView;
+  }
+  public void addCustomAnimator(CustomAnimator animator) {
+    removeCustomAnimator(animator);
+    this.animators.add(animator);
+  }
+  public void removeCustomAnimator(CustomAnimator animator) {
+    this.animators.removeAll(animators);
+  }
+  private void addCustomAnimators(List<Animator> anims, MetroBarFragment fragment, AnimationReason reason) {
+    for (CustomAnimator a : this.animators)
+      a.animateFragment(anims, fragment, reason);
   }
   public void initialize(FrameLayout content) {
     View view = this.getView();
@@ -82,10 +244,17 @@ public class MetroBarFragment extends Fragment {
       text = null;
     }
     
-    
-    if (topText != null)
+    if (topText != null) {
       animateTextHighlight(null, topText);
+      if (this.displayMode != DisplayMode.FULL_HEIGHT) {
+        this.displayMode = DisplayMode.COLLAPSED; // DUMMY VALUE
+        this.setDisplayMode(DisplayMode.ONE_LINE, null);
+      }
+    }
     if (text != null) {
+      this.openedNestedTab = true;
+      if (this.displayMode != DisplayMode.FULL_HEIGHT)
+        this.setDisplayMode(DisplayMode.COLLAPSABLE, null);
       ViewPager pagerToShow = (ViewPager)text.getTag();
       for (ViewPager p : this.pagers) {
         if (p == pagerToShow)
@@ -100,7 +269,14 @@ public class MetroBarFragment extends Fragment {
       animateShelfBottoms(null, 0);
       FadingHorizontalScrollView topShelfScroll = (FadingHorizontalScrollView)this.getView().findViewById(R.id.topShelfScroll);
       topShelfScroll.setInitialScrollX(this.topShelfScrollX);
-      gotoViewFor(text);
+      if (this.displayMode == DisplayMode.FULL_HEIGHT) {
+        this.expando.setVisibility(View.GONE);
+      } else {
+        this.expando.setVisibility(View.VISIBLE);
+        this.expando.setImageResource(R.drawable.navigation_collapse);
+      }
+      addCustomAnimators(null, this, AnimationReason.SETUP);
+      gotoViewFor(text, null);
     } else {
       ((ViewPager)topText.getTag()).setVisibility(View.VISIBLE);
     }
@@ -142,7 +318,7 @@ public class MetroBarFragment extends Fragment {
         for (int j = 0; j < nextShelf.getChildCount(); j++) {
           TextView nextText = (TextView)nextShelf.getChildAt(j);
           this.parentTextMap.put(nextText.getId(), text.getId());
-          nextText.setOnClickListener(new NestedTabClickListener(nextText, nextShelf));
+          nextText.setOnClickListener(new NestedTabClickListener(this, nextText, nextShelf));
           nextText.setTag(pager);
           this.texts.add(nextText);
         }
@@ -208,7 +384,13 @@ public class MetroBarFragment extends Fragment {
       return this.fragments.get(position).second;
     }
   }
-  
+    
+  /**
+   * Hack field to work around a weird bug in Android (at least in v4.0.4) where the bottomPadding isn't set right,
+   * so this field marks whether we've opened a second-level tab or not, which seems to be the deciding factor
+   * for how the bottomPadding gets used.
+   */
+  private boolean openedNestedTab = false;
   private class TopTabClickListener implements OnClickListener {
     MetroBarFragment fragment;
     TextView text;
@@ -235,15 +417,23 @@ public class MetroBarFragment extends Fragment {
       animateScrollToView(anims, this.text);
       animateTextHighlight(anims, this.text);
       if (this.shelfToShow != null) {
+        openedNestedTab = true;
         TextView childToShow = (TextView)this.shelfToShow.getChildAt(0);
         animateTextHighlight(anims, childToShow);
         animateShelves(anims, this.shelfToShow);
         animateShelfBottoms(anims, 0);
         setActiveTab(childToShow.getId());
+        if (this.fragment.displayMode == DisplayMode.ONE_LINE) {
+          addCustomAnimators(anims, this.fragment, AnimationReason.EXPAND);
+          this.fragment.setDisplayMode(DisplayMode.COLLAPSABLE, anims);
+          this.fragment.setOneShotCancelableTimer();
+        }
       } else {
         animateShelves(anims, topShelf);
         animateShelfBottoms(anims, 8);
         setActiveTab(this.text.getId());
+        if (!(this.fragment.displayMode == DisplayMode.FULL_HEIGHT))
+          this.fragment.setDisplayMode(DisplayMode.ONE_LINE, anims);
       }
       set.playTogether(anims);
       set.setDuration(DURATION);
@@ -304,23 +494,23 @@ public class MetroBarFragment extends Fragment {
   private class NestedTabClickListener implements OnClickListener {
     TextView         text;
     LinearLayout     thisShelf;
+    MetroBarFragment fragment;
 
-    public NestedTabClickListener(TextView text, LinearLayout thisShelf) {
+    public NestedTabClickListener(MetroBarFragment fragment, TextView text, LinearLayout thisShelf) {
+      this.fragment = fragment;
       this.text = text;
       this.thisShelf = thisShelf;
     }
 
     public void onClick(View v) {
-      AnimatorSet set = new AnimatorSet();
       List<Animator> anims = new ArrayList<Animator>(4);
       animateTextHighlight(anims, this.text);
       hideShelvesUnlessAncestorOf(this.thisShelf);
       animateShelves(anims, this.thisShelf);
       animateShelfBottoms(anims, 0);
-      set.playTogether(anims);
-      set.setDuration(DURATION);
-      set.start();
-      gotoViewFor(this.text);
+      if (!(this.fragment.displayMode == DisplayMode.FULL_HEIGHT))
+        addCustomAnimators(anims, this.fragment, AnimationReason.EXPAND);
+      gotoViewFor(this.text, anims);
     }
   }
 
@@ -331,8 +521,9 @@ public class MetroBarFragment extends Fragment {
   }
   
   private void animateShelfBottoms(List<Animator> anims, int bottomMargin) {
+    if (!openedNestedTab) return;
     LinearLayout topShelf = (LinearLayout)this.getView().findViewById(R.id.topShelf);
-    // Due to a weid bug in Android, this appears to work best if it always goes to zero: the prior margin gets used on collapse
+    // Due to a weird bug in Android, this appears to work best if it always goes to zero: the prior margin gets used on collapse
     // even though it shouldn't.  And on re-orientation, it goes back to its prior value.
     bottomMargin = 0;//(int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, bottomMargin, this.getResources().getDisplayMetrics());
     for (int i = 0; i < topShelf.getChildCount(); i++) {
@@ -396,16 +587,16 @@ public class MetroBarFragment extends Fragment {
     }
   }
 
-  public void gotoDefaultShelfViewFor(LinearLayout shelf) {
+  public void gotoDefaultShelfViewFor(LinearLayout shelf, List<Animator> anims) {
     if (shelf == null) return;
     for (int i = 0; i < shelf.getChildCount(); i++) {
       final TextView text = (TextView)shelf.getChildAt(i);
       if (text.isSelected()) {
-        gotoViewFor(text);
+        gotoViewFor(text, anims);
         return;
       }
     }
-    gotoViewFor((TextView)shelf.getChildAt(0));
+    gotoViewFor((TextView)shelf.getChildAt(0), anims);
   }
 
   public Fragment getViewFor(TextView text) {
@@ -420,7 +611,9 @@ public class MetroBarFragment extends Fragment {
     ret = shelfAdapter.getItem(index);
     return ret;
   }
-  public Fragment gotoViewFor(TextView text) {
+  public Fragment gotoViewFor(TextView text, List<Animator> anims) {
+    if (this.displayMode != DisplayMode.FULL_HEIGHT)
+      this.setDisplayMode(DisplayMode.COLLAPSABLE, anims);
     ViewPager pager = (ViewPager)text.getTag();
     if (pager == null)
       return null;

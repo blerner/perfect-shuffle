@@ -425,4 +425,25 @@ public class ExpandoGroup extends TableLayout {
       return ret;
     }
   }
+  public static class SizeAnimator extends ValueAnimator {
+    public enum Size { WIDTH, HEIGHT };
+    public static ValueAnimator ofSize(final View target, final Size whichSize, int... values) {
+      ValueAnimator ret = ValueAnimator.ofInt(values);
+      ret.addUpdateListener(new AnimatorUpdateListener() {
+        public void onAnimationUpdate(ValueAnimator animation) {
+          int value = (Integer)animation.getAnimatedValue();
+          MarginLayoutParams params = (MarginLayoutParams)target.getLayoutParams();
+          switch (whichSize) {
+          case WIDTH:
+            params.width = value;
+            break;
+          case HEIGHT:
+            params.height = value;
+            break;
+          }
+          target.requestLayout();
+        }});
+      return ret;
+    }
+  }
 }

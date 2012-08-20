@@ -82,18 +82,19 @@
 
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
-
+
     <edu.benlerner.perfectshuffle.FadingHorizontalScrollView
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/musicShelfScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_above="@+id/nowPlayingShelfScroll"
+        android:layout_toLeftOf="@+id/expando"
         cacheColorHint="#997755"
         android:fadingEdgeLength="16dip"
         android:requiresFadingEdge="horizontal"
         android:scrollbars="none" >
-
+
         <LinearLayout
             android:id="@+id/musicShelf"
             android:layout_width="wrap_content"
@@ -145,18 +146,19 @@
 
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
-
+
     <edu.benlerner.perfectshuffle.FadingHorizontalScrollView
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/nowPlayingShelfScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:layout_toLeftOf="@+id/expando"
         cacheColorHint="#997755"
         android:fadingEdgeLength="16dip"
         android:requiresFadingEdge="horizontal"
         android:scrollbars="none" >
-
+
         <LinearLayout
             android:id="@+id/nowPlayingShelf"
             android:layout_width="wrap_content"
@@ -187,5 +189,16 @@
 
         </LinearLayout>
     </edu.benlerner.perfectshuffle.FadingHorizontalScrollView>
+
+    <ImageView
+        android:id="@+id/expando"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:contentDescription="@string/expand_collapse"
+        android:paddingBottom="4dip"
+        android:paddingRight="4dip"
+        android:src="@drawable/navigation_collapse" />
 
 </RelativeLayout>
