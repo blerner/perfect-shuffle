@@ -29,7 +29,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
-public class PlayControls extends Fragment {
+public class PlayControls extends Fragment implements View.OnClickListener, SeekBar.OnSeekBarChangeListener {
   SeekBar mProgress;
   TextView mStartTime;
   View mainView;
@@ -115,18 +115,14 @@ public class PlayControls extends Fragment {
     this.mAlbumName = (TextView)mainView.findViewById(R.id.albumName);
     this.mSongName = (TextView)mainView.findViewById(R.id.songTitle);
     this.mAlbumArt = (ImageView)mainView.findViewById(R.id.albumArt);
-    View.OnClickListener clickHandler = new View.OnClickListener() {
-      public void onClick(View v) {
-        frag.onClick(v);
-      }
-    };
-    this.mPlay.setOnClickListener(clickHandler);
+    this.mPlay.setOnClickListener(this);
     try {
       this.mPlay.setChecked(MusicUtils.sService.isPlaying());
     } catch (Exception e) {
     }
-    ((ImageButton)this.mainView.findViewById(R.id.rew)).setOnClickListener(clickHandler);
-    ((ImageButton)this.mainView.findViewById(R.id.fwd)).setOnClickListener(clickHandler);
+    ((ImageButton)this.mainView.findViewById(R.id.rew)).setOnClickListener(this);
+    ((ImageButton)this.mainView.findViewById(R.id.fwd)).setOnClickListener(this);
+    ((SeekBar)this.mainView.findViewById(R.id.seekBar)).setOnSeekBarChangeListener(this);
     readInfoFromService();
     return this.mainView;
   }
@@ -242,9 +238,9 @@ public class PlayControls extends Fragment {
         mNotificationManager.notify(0, notification);
     }
 
-    }
+  }
   
-  void onClick(View v) {
+  public void onClick(View v) {
     if (MusicUtils.sService == null) return;
     switch (v.getId()) {
     case R.id.play:
@@ -285,6 +281,7 @@ public class PlayControls extends Fragment {
     }    
   }
 
+  private boolean userSeekingDontRefresh = false;
   private long refreshNow() {
     if (this.readInfoStillNeeded)
       readInfoFromService();
@@ -292,16 +289,18 @@ public class PlayControls extends Fragment {
     try {
       long pos = MusicUtils.sService.position();
       long duration = MusicUtils.sService.duration();
-      if ((pos >= 0) && (duration > 0)) {
-        Context cxt = this.getActivity();
-        if (cxt != null)
-          this.mStartTime.setText(MusicUtils.makeTimeString(this.getActivity(), pos / 1000));
-        int progress = (int)(1000 * pos / duration);
-        this.mProgress.setProgress(progress);
-
-        if (!MusicUtils.sService.isPlaying()) { return 500; }
-      } else {
-        this.mProgress.setProgress(1000);
+      if (!userSeekingDontRefresh) {
+        if ((pos >= 0) && (duration > 0)) {
+          Context cxt = this.getActivity();
+          if (cxt != null)
+            this.mStartTime.setText(MusicUtils.makeTimeString(this.getActivity(), pos / 1000));
+          int progress = (int)(1000 * pos / duration);
+          this.mProgress.setProgress(progress);
+  
+          if (!MusicUtils.sService.isPlaying()) { return 500; }
+        } else {
+          this.mProgress.setProgress(1000);
+        }
       }
       // calculate the number of milliseconds until the next full second, so
       // the counter can be updated at just the right time
@@ -319,5 +318,27 @@ public class PlayControls extends Fragment {
     } catch (RemoteException ex) {
     }
     return 500;
+  }
+
+  @Override
+  public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+    if (fromUser) {
+      try {
+        if (MusicUtils.sService.isPlaying()) {
+          MusicUtils.sService.seek((int)((float)MusicUtils.sService.duration() * ((float)progress / seekBar.getMax())));
+        }
+      } catch (RemoteException e) {
+      }
+    }
+  }
+
+  @Override
+  public void onStartTrackingTouch(SeekBar seekBar) {
+    this.userSeekingDontRefresh = true;
+  }
+
+  @Override
+  public void onStopTrackingTouch(SeekBar seekBar) {
+    this.userSeekingDontRefresh = false;
   }
 }
