@@ -1,12 +1,13 @@
 package edu.benlerner.perfectshuffle;
 
+import edu.benlerner.perfectshuffle.MusicUtils.Caches;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
@@ -30,7 +31,13 @@ public class Albumgrid extends Fragment {
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     View view = inflater.inflate(R.layout.albumgrid, container, false);
     this.mGridView = (GridView)view.findViewById(R.id.grid_view);
-    this.defaultAlbumArt = new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(), R.drawable.eighth_notes));
+    BitmapFactory.Options options = new BitmapFactory.Options();
+    options.inInputShareable = true;
+    options.inPurgeable = true;
+    int size = (int)((PerfectShuffle)(this.getActivity())).dipToPx(96.f);
+    this.defaultAlbumArt = new BitmapDrawable(this.getResources(), 
+        Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getResources(),R.drawable.eighth_notes, options),
+            size, size, true));    
     
     FrameLayout buffer = new FrameLayout(this.getActivity());
     FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
@@ -115,7 +122,8 @@ public class Albumgrid extends Fragment {
       View v = super.getView(position, convertView, parent);
       long album_id = this.getItemId(position);
       ImageView img = (ImageView)v.findViewById(R.id.albumgridItemThumbnail);
-      Drawable bm = MusicUtils.getCachedArtwork(v.getContext(), album_id, defaultAlbumArt);
+      Bitmap defaultIcon = defaultAlbumArt.getBitmap();
+      MusicUtils.FastBitmapDrawable bm = MusicUtils.getCachedArtwork(v.getContext(), album_id, defaultIcon.getWidth(), defaultIcon.getHeight(), defaultIcon, Caches.SMALL);
       img.setImageDrawable(bm);
       return v;
     }    

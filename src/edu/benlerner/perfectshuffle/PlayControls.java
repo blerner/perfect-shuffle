@@ -2,8 +2,18 @@ package edu.benlerner.perfectshuffle;
 
 import java.lang.ref.WeakReference;
 
+import com.mpatric.mp3agic.Mp3File;
+
+import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
+import android.media.MediaScannerConnection;
+import android.media.MediaScannerConnection.MediaScannerConnectionClient;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -138,6 +148,7 @@ public class PlayControls extends Fragment {
       }
       this.mPlay.setChecked(!MusicUtils.sService.isPlaying());
       int width = this.mAlbumArt.getWidth();
+      int height = this.mAlbumArt.getHeight();
       if (width <= 0) {
         this.mainView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
           public void onGlobalLayout() {
@@ -161,11 +172,23 @@ public class PlayControls extends Fragment {
       this.mSongName.setText(MusicUtils.sService.getTrackName());
       Bitmap art = null;
       if (albumId != -1) {
-        art = MusicUtils.getArtworkQuick(this.getActivity(), albumId, width, width);
+        art = MusicUtils.getArtworkQuick(this.getActivity(), albumId, width, height, true);
       }
       if (art == null) {
         art = MusicUtils.getFileArt(MusicUtils.sService.getPath());
-        art = Bitmap.createScaledBitmap(art, width, width, true);
+        if (art != null) {
+          if (art.getWidth() < art.getHeight())
+            width = (int)(height * ((float)art.getWidth() / art.getHeight()));
+          else
+            height = (int)(width * ((float)art.getHeight() / art.getWidth()));
+          art = Bitmap.createScaledBitmap(art, width, height, true);
+        } else {
+          // Try harder, one last time
+          Mp3File file = new Mp3File(MusicUtils.sService.getPath(), false);
+          if (file.hasId3v2Tag() && file.getId3v2Tag().getAlbumImage() != null)
+            if (this.pendingScan == null)
+              this.pendingScan = new SingleMediaScanner(this.getActivity(), this.getActivity(), MusicUtils.sService.getPath());
+        }
       }
       if (art != null) {
         this.mAlbumArt.setImageBitmap(art);
@@ -176,6 +199,50 @@ public class PlayControls extends Fragment {
       e.printStackTrace();
     }
   }
+  private SingleMediaScanner pendingScan = null;
+  private class SingleMediaScanner implements MediaScannerConnectionClient {
+
+    private MediaScannerConnection mMs;
+    private String filePath;
+    private Activity activity;
+
+    public SingleMediaScanner(Activity activity, Context context, String filePath) {
+      this.activity = activity;
+        this.filePath = filePath;
+        mMs = new MediaScannerConnection(context, this);
+        mMs.connect();
+    }
+
+    @Override
+    public void onMediaScannerConnected() {
+        mMs.scanFile(this.filePath, null);
+    }
+
+    @Override
+    public void onScanCompleted(String path, Uri uri) {
+        mMs.disconnect();
+        pendingScan = null;
+        final Context context = this.activity.getApplicationContext();
+        final NotificationManager mNotificationManager = (NotificationManager)this.activity.getSystemService(Context.NOTIFICATION_SERVICE);
+        int icon = android.R.drawable.ic_dialog_info;
+        Intent notificationIntent = new Intent();
+        final PendingIntent contentIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
+        CharSequence tickerText;
+        String result;
+        if (uri != null) {
+          tickerText = "Rescan file succeeded";
+          result = uri.toString();
+        } else {
+          tickerText = "Rescan file failed";
+          result = "Not mapped to anything";
+        }
+        long when = System.currentTimeMillis();
+        Notification notification = new Notification(icon, tickerText, when);
+        notification.setLatestEventInfo(context, path, result, contentIntent);
+        mNotificationManager.notify(0, notification);
+    }
+
+    }
   
   void onClick(View v) {
     if (MusicUtils.sService == null) return;

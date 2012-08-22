@@ -28,6 +28,7 @@ import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.media.MediaMetadataRetriever;
@@ -36,6 +37,7 @@ import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.text.format.Time;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 
@@ -281,18 +283,25 @@ public class MusicUtils {
 
   // A really simple BitmapDrawable-like class, that doesn't do
   // scaling, dithering or filtering.
-  private static class FastBitmapDrawable extends Drawable {
+  static class FastBitmapDrawable extends Drawable {
     private Bitmap mBitmap;
-
-    public FastBitmapDrawable(Bitmap b) {
-      mBitmap = b;
+    int gravLeft, gravTop;
+    
+    public FastBitmapDrawable(Bitmap b, int gravity, int width, int height) {
+      this.mBitmap = b;
+      Rect bounds = new Rect(0, 0, width, height);
+      Rect outRect = new Rect();
+      Gravity.apply(gravity, mBitmap.getWidth(), mBitmap.getHeight(), bounds, outRect);
+      this.gravLeft = outRect.left;
+      this.gravTop = outRect.top;
     }
 
+    public Bitmap getBitmap() { return mBitmap; }
     @Override
     public void draw(Canvas canvas) {
-      canvas.drawBitmap(mBitmap, 0, 0, null);
+      canvas.drawBitmap(mBitmap, this.gravLeft, this.gravTop, null);
     }
-
+    
     @Override
     public int getOpacity() {
       return PixelFormat.OPAQUE;
@@ -305,13 +314,19 @@ public class MusicUtils {
     @Override
     public void setColorFilter(ColorFilter cf) {
     }
+    
+    public int getWidth() {
+      return mBitmap == null ? -1 : mBitmap.getWidth();
+    }
+    public int getHeight() {
+      return mBitmap == null ? -1 : mBitmap.getHeight();
+    }
   }
 
   private static final BitmapFactory.Options   sBitmapOptionsCache = new BitmapFactory.Options();
   private static final BitmapFactory.Options   sBitmapOptions      = new BitmapFactory.Options();
-  private static final Uri                     sArtworkUri         = Uri
-                                                                       .parse("content://media/external/audio/albumart");
-  private static final HashMap<Long, Drawable> sArtCache           = new HashMap<Long, Drawable>();
+  private static final Uri                     sArtworkUri         = Uri.parse("content://media/external/audio/albumart");
+  private static final HashMap<Long, FastBitmapDrawable> sArtCache = new HashMap<Long, FastBitmapDrawable>();
 
   static {
     // for the cache,
@@ -331,28 +346,62 @@ public class MusicUtils {
     }
   }
 
-  public static Drawable getCachedArtwork(Context context, long album_id, BitmapDrawable defaultArtwork) {
-    Drawable d = null;
+  public enum Caches {
+    SMALL,
+    SMALL_STRETCHED,
+    FULLSIZE
+  }
+  public static FastBitmapDrawable getCachedArtwork(Context context, long album_id, int defaultWidth, int defaultHeight, Bitmap defaultArtwork, Caches whichCache) {
+    FastBitmapDrawable d = null;
     synchronized (sArtCache) {
       d = sArtCache.get(album_id);
     }
-    if (d == null && defaultArtwork != null) {
-      d = defaultArtwork;
-      final Bitmap icon = defaultArtwork.getBitmap();
-      int w = icon.getWidth();
-      int h = icon.getHeight();
-      Bitmap b = MusicUtils.getArtworkQuick(context, album_id, w, h);
-      if (b != null) {
-        d = new FastBitmapDrawable(b);
-        synchronized (sArtCache) {
-          // the cache may have changed since we checked
-          Drawable value = sArtCache.get(album_id);
-          if (value == null) {
-            sArtCache.put(album_id, d);
-          } else {
-            d = value;
-          }
-        }
+    boolean preserveAspectRatio = (whichCache != Caches.SMALL_STRETCHED);
+    if (d != null) {
+      int dW = d.getWidth();
+      int dH = d.getHeight();
+      boolean wrongSize = ((dW != defaultWidth || dH != defaultHeight));
+      if (wrongSize)
+        return new FastBitmapDrawable(resizeToFit(defaultWidth, defaultHeight, d.getBitmap(), preserveAspectRatio), Gravity.CENTER, defaultWidth, defaultHeight);
+      else
+        return d;
+    } else {
+      Bitmap b = MusicUtils.getArtworkQuick(context, album_id, defaultWidth, defaultHeight, preserveAspectRatio);
+      if (b == null)
+        b = resizeToFit(defaultWidth, defaultHeight, defaultArtwork, preserveAspectRatio);
+      d = updateCache(album_id, b, defaultWidth, defaultHeight);
+      return d;
+    }
+  }
+
+  private static Bitmap resizeToFit(int targetWidth, int targetHeight, Bitmap source, boolean preserveAspectRatio) {
+    int sH = source.getHeight(); 
+    int sW = source.getWidth();
+    int w = targetWidth; int h = targetHeight;
+    if (preserveAspectRatio) {
+      float aspect = (float)sH / (float)sW;
+      if (aspect > 1.f) { // tall, shrink width
+        w = (int)((float)h / aspect);
+      } else { // wide, shrink height
+        h = (int)((float)w * aspect);
+      }
+    }
+    if (w != sW || h != sH) {
+//      Log.d("ImageCache", String.format("Scaling bitmap from (%dx%d) to (%dx%d) to fit (%dx%d), preserveAspectRatio = %b", sW, sH, w, h, targetWigth, targetHeight, preserveAspectRatio));
+      return Bitmap.createScaledBitmap(source, w, h, true);
+    } else {
+//      Log.d("ImageCache", String.format("Returning bitmap unscaled from (%dx%d) to fit (%dx%d), preserveAspectRatio = %b", w, h, targetWidth, targetHeight, preserveAspectRatio));
+      return source;
+    }
+  }
+  
+  private static FastBitmapDrawable updateCache(long album_id, Bitmap b, int width, int height) {
+    FastBitmapDrawable d = new FastBitmapDrawable(b, Gravity.CENTER, width, height);
+    synchronized (sArtCache) {
+      // the cache may have changed since we checked
+      FastBitmapDrawable value = sArtCache.get(album_id);
+      if (value == null) {
+        sArtCache.put(album_id, d);
       }
     }
     return d;
@@ -368,13 +417,7 @@ public class MusicUtils {
     } else {
       Bitmap imageBmp = BitmapFactory.decodeByteArray(image, 0, image.length);
       final Bitmap icon = defaultArtwork.getBitmap();
-      int w = icon.getWidth();
-      int h = icon.getHeight();
-      Bitmap b = Bitmap.createScaledBitmap(imageBmp, w, h, true);
-      FastBitmapDrawable d = new FastBitmapDrawable(b);
-      synchronized (sArtCache) {
-        sArtCache.put(album_id, d);
-      }
+      updateCache(album_id, resizeToFit(icon.getWidth(), icon.getHeight(), imageBmp, true), icon.getWidth(), icon.getHeight());
       return true;
     }
   }
@@ -391,10 +434,10 @@ public class MusicUtils {
     }
   }
 
-  // Get album art for specified album. This method will not try to
-  // fall back to getting artwork directly from the file, nor will
-  // it attempt to repair the database.
-  public static Bitmap getArtworkQuick(Context context, long album_id, int w, int h) {
+  /** Get album art for specified album. This method will not try to
+   * fall back to getting artwork directly from the file, nor will
+   * it attempt to repair the database. */
+  public static Bitmap getArtworkQuick(Context context, long album_id, int w, int h, boolean preserveAspectRatio) {
     ContentResolver res = context.getContentResolver();
     Uri uri = ContentUris.withAppendedId(sArtworkUri, album_id);
     if (uri != null) {
@@ -423,6 +466,12 @@ public class MusicUtils {
         if (b != null) {
           // finally rescale to exactly the size we need
           if (sBitmapOptionsCache.outWidth != w || sBitmapOptionsCache.outHeight != h) {
+            if (preserveAspectRatio) {
+              if (sBitmapOptionsCache.outWidth < sBitmapOptionsCache.outHeight)
+                w = (int)(h * ((float)sBitmapOptionsCache.outWidth / sBitmapOptionsCache.outHeight));
+              else 
+                h = (int)(w * ((float)sBitmapOptionsCache.outHeight / sBitmapOptionsCache.outWidth));
+            }
             Bitmap tmp = Bitmap.createScaledBitmap(b, w, h, true);
             // Bitmap.createScaledBitmap() can return the same bitmap
             if (tmp != b) b.recycle();

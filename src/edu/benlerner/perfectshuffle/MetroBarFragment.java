@@ -360,7 +360,7 @@ public class MetroBarFragment extends Fragment {
       String tag = tagObj.toString();
       String[] tagParts = tag.split("/");
       if (tagParts[0].equals("playlist")) {
-        this.fragments.add(new Pair<String, Fragment>(tag, new Playlist()));
+        this.fragments.add(new Pair<String, Fragment>(tag, new PlaylistFragment()));
       } else if (tagParts[0].equals("albumgrid")) {
         this.fragments.add(new Pair<String, Fragment>(tag, new Albumgrid()));
       } else if (tagParts[0].equals("options")) {

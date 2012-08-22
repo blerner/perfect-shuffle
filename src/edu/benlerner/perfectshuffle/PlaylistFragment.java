@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapFactory.Options;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -17,13 +19,14 @@ import android.view.MenuInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 
 import com.mpatric.mp3agic.Mp3File;
 
-public class Playlist extends ListFragment {
+public class PlaylistFragment extends ListFragment {
 
   private int            currentPosition = 0;
   private Cursor         cursor          = null;
@@ -46,8 +49,13 @@ public class Playlist extends ListFragment {
   public void onStart() {
     super.onStart();
     this.updateSongList();
-    this.defaultAlbumArt = new BitmapDrawable(this.getResources(), BitmapFactory.decodeResource(this.getResources(),
-        R.drawable.eighth_notes));
+    BitmapFactory.Options options = new BitmapFactory.Options();
+    options.inInputShareable = true;
+    options.inPurgeable = true;
+    int size = (int)((PerfectShuffle)(this.getActivity())).dipToPx(64.f);
+    this.defaultAlbumArt = new BitmapDrawable(this.getResources(), 
+        Bitmap.createScaledBitmap(BitmapFactory.decodeResource(this.getResources(),R.drawable.eighth_notes, options),
+            size, size, true));    
   }
 
   protected void updateSongList() {
@@ -123,7 +131,9 @@ public class Playlist extends ListFragment {
       this.cursor.moveToPosition(position);
       long album_id = this.cursor.getLong(albumIdCol);
       ImageView img = (ImageView)row.findViewById(R.id.playlistItemThumbnail);
-      Drawable bm = MusicUtils.getCachedArtwork(row.getContext(), album_id, defaultAlbumArt);
+      Bitmap defaultIcon = defaultAlbumArt.getBitmap();
+      int size = defaultIcon.getWidth(); //(int)((PerfectShuffle)(PlaylistFragment.this.getActivity())).dipToPx(64.f);
+      Drawable bm = MusicUtils.getCachedArtwork(row.getContext(), album_id, size, size, defaultIcon, MusicUtils.Caches.SMALL);
       img.setImageDrawable(bm);
       return row;
     }

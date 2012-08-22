@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioManager;
@@ -31,6 +32,7 @@ import android.widget.Toast;
 import edu.benlerner.perfectshuffle.ExpandoGroup.SizeAnimator;
 import edu.benlerner.perfectshuffle.ExpandoGroup.SizeAnimator.Size;
 import edu.benlerner.perfectshuffle.MetroBarFragment.AnimationReason;
+import edu.benlerner.perfectshuffle.MusicUtils.Caches;
 import edu.benlerner.perfectshuffle.MusicUtils.ServiceToken;
 
 public class PerfectShuffle extends FragmentActivity {
@@ -86,6 +88,7 @@ public class PerfectShuffle extends FragmentActivity {
   }
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    Playlist.TestPlaylist();
     super.onCreate(savedInstanceState);
     this.mToken = MusicUtils.bindToService(this);
     setContentView(R.layout.activity_perfect_shuffle);
@@ -146,6 +149,9 @@ public class PerfectShuffle extends FragmentActivity {
     unregisterReceiver(mPlayListener);
   }
   
+  public float dipToPx(float dip) {
+    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dip, this.getResources().getDisplayMetrics());
+  }
 
   private static class PerfectShuffleHandler extends Handler {
     final WeakReference<PerfectShuffle> shuffle;
@@ -165,7 +171,9 @@ public class PerfectShuffle extends FragmentActivity {
         break;
       case RESCAN:
         shuffle = this.getShuffle();
-        shuffle.new PreloadAlbumArtTask(shuffle)
+        int width = (int)shuffle.dipToPx(96.f);
+        int height = width;
+        shuffle.new PreloadAlbumArtTask(shuffle, width, height)
           .execute(new BitmapDrawable(shuffle.getResources(), BitmapFactory.decodeResource(shuffle.getResources(), R.drawable.eighth_notes)));
         break;
       case QUIT:
@@ -211,10 +219,13 @@ public class PerfectShuffle extends FragmentActivity {
     Activity act;
     ContentResolver cr;
     boolean foundAnything;
-    public PreloadAlbumArtTask(Activity act) {
+    int width, height;
+    public PreloadAlbumArtTask(Activity act, int width, int height) {
       this.act = act;
       this.cr = act.getContentResolver();
       this.foundAnything = false;
+      this.width = width;
+      this.height = height;
     }
     
     @Override
@@ -228,7 +239,7 @@ public class PerfectShuffle extends FragmentActivity {
       audioCursor.moveToPosition(-1);
       final String where = android.provider.MediaStore.Audio.Media.ALBUM_ID  + "=?";
       while (audioCursor.moveToNext()) {
-        if (MusicUtils.getCachedArtwork(act, audioCursor.getInt(0), null) == null) {
+        if (MusicUtils.getCachedArtwork(act, audioCursor.getInt(0), width, height, null, Caches.SMALL) == null) {
           this.foundAnything = true;
           Cursor albumCursor = this.cr.query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, colsData,
               where, new String[] { String.valueOf(audioCursor.getInt(0)) }, null);
@@ -239,8 +250,10 @@ public class PerfectShuffle extends FragmentActivity {
               found = true;
               break;
             }
-          if (!found)
-            MusicUtils.getCachedArtwork(act, audioCursor.getInt(0), params[0]);
+          if (!found) {
+            Bitmap defaultIcon = params[0].getBitmap();
+            MusicUtils.getCachedArtwork(act, audioCursor.getInt(0), defaultIcon.getWidth(), defaultIcon.getHeight(), defaultIcon, Caches.SMALL);
+          }
           albumCursor.close();
         }
       }
